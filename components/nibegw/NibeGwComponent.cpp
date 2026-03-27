@@ -145,7 +145,7 @@ socket_ptr_type NibeGwComponent::bind_local_socket(int port) {
   auto fd = socket::socket_ip_loop_monitored(SOCK_DGRAM, 0);
   if (fd) {
     // Set non-blocking
-    fd->setblocking(true);
+    fd->setblocking(false);
 
     // Bind to write port
     socket_address address(port);
