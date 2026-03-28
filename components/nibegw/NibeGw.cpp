@@ -23,11 +23,9 @@
 using namespace esphome;
 
 NibeGw::NibeGw(esphome::uart::UARTDevice *serial, esphome::GPIOPin *RS485DirectionPin) {
-  state = STATE_WAIT_START;
-  connectionState = false;
   RS485 = serial;
   directionPin = RS485DirectionPin;
-  setCallback(NULL, NULL);
+  setCallback(nullptr, nullptr);
 }
 
 void NibeGw::connect() {
@@ -226,9 +224,9 @@ void NibeGw::loop() {
   }
 }
 
-uint8_t NibeGw::calculateChecksum(const uint8_t *const data, uint8_t len) {
+uint8_t NibeGw::calculateChecksum(const uint8_t *data, size_t len) {
   uint8_t checksum = 0;
-  for (uint8_t i = 0; i < len; i++) {
+  for (size_t i = 0; i < len; i++) {
     checksum ^= data[i];
   }
 
@@ -255,7 +253,7 @@ void NibeGw::sendEnd() {
   }
 }
 
-void NibeGw::sendData(const uint8_t *const data, uint8_t len) {
+void NibeGw::sendData(const uint8_t *data, uint8_t len) {
   sendBegin();
   RS485->write_array(data, len);
   sendEnd();

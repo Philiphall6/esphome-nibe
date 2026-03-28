@@ -54,11 +54,14 @@ enum eState {
 };
 
 enum eTokenType {
-  READ_TOKEN = 0x69,
-  WRITE_TOKEN = 0x6B,
   RMU_WRITE_TOKEN = 0x60,
   RMU_DATA_MSG = 0x62,
   RMU_DATA_TOKEN = 0x63,
+  MODBUS_DATA_MSG = 0x68,
+  READ_TOKEN = 0x69,
+  MODBUS_READ_RESP = 0x6A,
+  WRITE_TOKEN = 0x6B,
+  MODBUS_WRITE_RESP = 0x6C,
   ACCESSORY_TOKEN = 0xEE,
 };
 
@@ -94,18 +97,18 @@ typedef std::function<int(uint16_t address, uint8_t command, uint8_t *data)> cal
 
 class NibeGw {
  private:
-  eState state;
-  bool connectionState;
-  esphome::GPIOPin *directionPin;
-  uint8_t buffer[MAX_DATA_LEN * 2];
-  size_t index;
-  size_t indexSlave;
-  esphome::uart::UARTDevice *RS485;
+  eState state{STATE_WAIT_START};
+  bool connectionState{false};
+  esphome::GPIOPin *directionPin{nullptr};
+  uint8_t buffer[MAX_DATA_LEN * 2]{};  // zero-initialize
+  size_t index{0};
+  size_t indexSlave{0};
+  esphome::uart::UARTDevice *RS485{nullptr};
   callback_msg_received_type callback_msg_received;
   callback_msg_token_received_type callback_msg_token_received;
   std::set<uint16_t> addressAcknowledge;
 
-  uint8_t calculateChecksum(const uint8_t *data, uint8_t len);
+  uint8_t calculateChecksum(const uint8_t *data, size_t len);
   void sendData(const uint8_t *data, uint8_t len);
   void sendBegin();
   void sendEnd();
@@ -119,7 +122,7 @@ class NibeGw {
   void stateCompleteAck();
   void stateComplete(uint8_t data);
 
-  const char *TAG = "nibeGW";
+  static constexpr const char *TAG = "nibegw";
 #if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_VERBOSE
 #define DEBUG_BUFFER_LEN 300
   char debug_buf[DEBUG_BUFFER_LEN];
