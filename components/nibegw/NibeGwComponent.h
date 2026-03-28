@@ -1,7 +1,7 @@
 #pragma once
 
 #include <set>
-#include <queue>
+#include <deque>
 #include <vector>
 #include <cstddef>
 #include <cstdint>
@@ -23,17 +23,15 @@
 namespace esphome {
 namespace nibegw {
 
-using namespace std;
-
-typedef std::tuple<uint16_t, uint8_t> request_key_type;
-typedef std::vector<uint8_t> request_data_type;
-typedef std::function<request_data_type(void)> request_provider_type;
-typedef std::function<void(const request_data_type &)> message_listener_type;
+using request_key_type = std::tuple<uint16_t, uint8_t>;
+using request_data_type = std::vector<uint8_t>;
+using request_provider_type = std::function<request_data_type(void)>;
+using message_listener_type = std::function<void(const request_data_type &)>;
 
 #if ESPHOME_VERSION_CODE >= VERSION_CODE(2026, 3, 0)
-typedef std::unique_ptr<socket::ListenSocket> socket_ptr_type;
+using socket_ptr_type = std::unique_ptr<socket::ListenSocket>;
 #else
-typedef std::unique_ptr<socket::Socket> socket_ptr_type;
+using socket_ptr_type = std::unique_ptr<socket::Socket>;
 #endif
 
 struct request_socket_type {
@@ -45,25 +43,24 @@ class NibeGwComponent : public esphome::Component, public esphome::uart::UARTDev
   float get_setup_priority() const override {
     return setup_priority::PROCESSOR;
   }
-  const char *TAG = "nibegw";
-  const int requests_queue_max = 3;
-  const uint32_t target_timeout_ms_ = 120000;
+  static constexpr const char *TAG = "nibegw";
+  static constexpr size_t REQUESTS_QUEUE_MAX = 3;
+  static constexpr uint32_t TARGET_TIMEOUT_MS = 120000;
   bool is_connected_ = false;
 
   std::vector<socket_address> udp_sources_;
   std::vector<socket_address> udp_targets_static_;
   std::map<socket_address, uint32_t> udp_targets_;
-  std::map<request_key_type, std::queue<request_data_type>> requests_;
+  std::map<request_key_type, std::deque<request_data_type>> requests_;
   std::map<request_key_type, request_provider_type> requests_provider_;
   std::map<request_key_type, request_socket_type> requests_sockets_;
-  std::map<request_key_type, message_listener_type> message_listener_;
+  std::map<request_key_type, std::vector<message_listener_type>> message_listeners_;
   HighFrequencyLoopRequester high_freq_;
 
   NibeGw *gw_;
 
   void callback_msg_received(const uint8_t *data, int len);
   int callback_msg_token_received(uint16_t address, uint8_t command, uint8_t *data);
-  void callback_debug(uint8_t verbose, char *data);
 
   void run_request_socket(const request_key_type &key, request_socket_type &data);
   void recv_local_socket(socket_ptr_type &fd, int address, int token);
@@ -77,7 +74,7 @@ class NibeGwComponent : public esphome::Component, public esphome::uart::UARTDev
 
   void add_source_ip(const network::IPAddress &ip) {
     udp_sources_.push_back(socket_address(ip, 0));
-  };
+  }
 
   void add_socket_request(int address, int token, int port) {
     auto &handler = requests_sockets_[request_key_type(address, token)];
@@ -93,16 +90,35 @@ class NibeGwComponent : public esphome::Component, public esphome::uart::UARTDev
   }
 
   void add_listener(int address, int token, message_listener_type listener) {
-    message_listener_[request_key_type(address, token)] = listener;
+    message_listeners_[request_key_type(address, token)].push_back(std::move(listener));
   }
 
   void add_queued_request(int address, int token, request_data_type request) {
     auto &queue = requests_[request_key_type(address, token)];
-    if (queue.size() >= requests_queue_max) {
-      queue.pop();
+    if (queue.size() >= REQUESTS_QUEUE_MAX) {
+      ESP_LOGV(TAG, "Request queue full for 0x%x:0x%x, dropping oldest", address, token);
+      queue.pop_front();
     }
-    queue.push(std::move(request));
+    queue.push_back(std::move(request));
   }
+
+  // Priority request: inserted at front of queue (for write-verify reads)
+  void add_priority_request(int address, int token, request_data_type request) {
+    auto &queue = requests_[request_key_type(address, token)];
+    if (queue.size() >= REQUESTS_QUEUE_MAX) {
+      ESP_LOGV(TAG, "Request queue full for 0x%x:0x%x, dropping oldest", address, token);
+      queue.pop_back();  // drop newest (least important) to make room
+    }
+    queue.push_front(std::move(request));
+  }
+
+  const std::deque<request_data_type> &get_request_queue(int address, int token) const {
+    static const std::deque<request_data_type> empty;
+    auto it = requests_.find(request_key_type(address, token));
+    return (it != requests_.end()) ? it->second : empty;
+  }
+
+  static constexpr size_t get_queue_capacity() { return REQUESTS_QUEUE_MAX; }
 
   void add_acknowledge(int address) {
     gw_->setAcknowledge(address, true);

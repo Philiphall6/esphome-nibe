@@ -29,9 +29,12 @@ static request_data_type dedup(const uint8_t *data, int len, uint8_t val) {
 void NibeGwComponent::callback_msg_received(const uint8_t *data, int len) {
   {
     request_key_type key{data[2] | (data[1] << 8), static_cast<uint8_t>(data[3])};
-    const auto &it = message_listener_.find(key);
-    if (it != message_listener_.end()) {
-      it->second(dedup(data, len, STARTBYTE_MASTER));
+    const auto &it = message_listeners_.find(key);
+    if (it != message_listeners_.end()) {
+      auto deduped = dedup(data, len, STARTBYTE_MASTER);
+      for (auto &listener : it->second) {
+        listener(deduped);
+      }
     }
   }
 
@@ -42,7 +45,6 @@ void NibeGwComponent::callback_msg_received(const uint8_t *data, int len) {
   /* always sending standard data from modbus read token */
   auto &udp_read_ = requests_sockets_[request_key_type(MODBUS40, READ_TOKEN)].socket;
   if (!udp_read_) {
-    ESP_LOGW(TAG, "UDP read socket not available");
     return;
   }
 
@@ -69,7 +71,7 @@ void NibeGwComponent::recv_local_socket(socket_ptr_type &fd, int address, int to
   request.resize(n);
 
   if (udp_sources_.size() &&
-      none_of(udp_sources_.begin(), udp_sources_.end(), [&](auto &source) { return from.matches(source); })) {
+      std::none_of(udp_sources_.begin(), udp_sources_.end(), [&](auto &source) { return from.matches(source); })) {
     ESP_LOGW(TAG, "UDP Packet wrong ip ignored %s", from.str().c_str());
     return;
   }
@@ -104,7 +106,7 @@ int NibeGwComponent::callback_msg_token_received(uint16_t address, uint8_t comma
       auto &queue = it->second;
       if (!queue.empty()) {
         auto len = copy_request(queue.front(), data);
-        queue.pop();
+        queue.pop_front();
         ESP_LOGD(TAG, "Response to address: 0x%x token: 0x%x bytes: %d", std::get<0>(key), std::get<1>(key), len);
         return len;
       }
@@ -139,6 +141,9 @@ void NibeGwComponent::dump_config() {
   for (auto const &x : requests_sockets_) {
     ESP_LOGCONFIG(TAG, " Handler %x:%x Port: %d", std::get<0>(x.first), std::get<1>(x.first), x.second.port);
   }
+  for (auto const &x : message_listeners_) {
+    ESP_LOGCONFIG(TAG, " Listeners %x:%x Count: %zu", std::get<0>(x.first), std::get<1>(x.first), x.second.size());
+  }
 }
 
 socket_ptr_type NibeGwComponent::bind_local_socket(int port) {
@@ -147,7 +152,6 @@ socket_ptr_type NibeGwComponent::bind_local_socket(int port) {
     // Set non-blocking
     fd->setblocking(false);
 
-    // Bind to write port
     socket_address address(port);
 
     if (fd->bind((sockaddr *) &address.storage, address.len) < 0) {
@@ -189,7 +193,6 @@ void NibeGwComponent::run_request_socket(const request_key_type &key, request_so
 
 void NibeGwComponent::loop() {
   // Handle network connection state
-
   if (network::is_connected()) {
     if (!is_connected_) {
       ESP_LOGI(TAG, "Connecting network ports.");
@@ -210,7 +213,7 @@ void NibeGwComponent::loop() {
   }
 
   // Check for timeouts on targets
-  std::erase_if(udp_targets_, [&](const auto &item) { return now - item.second > target_timeout_ms_; });
+  std::erase_if(udp_targets_, [&](const auto &item) { return now - item.second > TARGET_TIMEOUT_MS; });
 
   // Poll sockets for incoming packets
   for (auto &[key, data] : requests_sockets_) {
