@@ -185,9 +185,14 @@ void NibeGw::handleMsgReceived() {
     if (len == 0) {
       int msglen = callback_msg_token_received(address, command, &buffer[index]);
       if (msglen > 0) {
-        sendData(&buffer[index], msglen);
-        index += msglen;
-        state = STATE_WAIT_ACK;
+        if (checkSlaveData(&buffer[index], msglen) == PACKET_OK) {
+          sendData(&buffer[index], msglen);
+          index += msglen;
+          state = STATE_WAIT_ACK;
+        } else {
+          ESP_LOGW(TAG, "Dropping invalid token response for 0x%x:0x%x (%d bytes)", address, command, msglen);
+          stateCompleteAck();
+        }
       } else {
         stateCompleteAck();
       }
