@@ -210,11 +210,11 @@ async def to_code(config):
     for request in config[CONF_CONSTANTS]:
         cmd = request.get(CONF_COMMAND, request[CONF_TOKEN])
 
-if hasattr(cmd, "enum_value"):
-    cmd = cmd.enum_value
+        if hasattr(cmd, "enum_value"):
+            cmd = cmd.enum_value
 
-data = generate_request(
-    cmd,
-    request[CONF_DATA],
-)
+        data = generate_request(
+            cmd,
+            request[CONF_DATA],
+        )
         cg.add(var.set_request(request[CONF_ADDRESS], request[CONF_TOKEN], data))
