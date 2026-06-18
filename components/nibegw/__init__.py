@@ -50,7 +50,8 @@ class Addresses(IntEnum):
     RMU40_S4 = 0x1C
     DEH500 = 0x27
     EME20 = 0xA4
-
+    ECS_S2 = 0x02
+    ECS_S3 = 0x03
 
 class Token(IntEnum):
     MODBUS_READ = 0x69
@@ -58,7 +59,9 @@ class Token(IntEnum):
     RMU_WRITE = 0x60
     RMU_DATA = 0x63
     ACCESSORY = 0xEE
-
+    ECS_DATA_REQ = 0x90
+    ECS_DATA_MSG_1 = 0x55
+    ECS_DATA_MSG_2 = 0xA0
 
 def addresses_string(value):
     try:
