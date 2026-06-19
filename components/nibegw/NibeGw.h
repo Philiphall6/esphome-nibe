@@ -94,6 +94,7 @@ typedef std::function<int(uint16_t address, uint8_t command, uint8_t *data)> cal
 #define MODBUS40 0x20
 #define DEH500 0x27
 #define EME20 0xA4
+#define ECS_S3 0x03
 
 class NibeGw {
  private:
