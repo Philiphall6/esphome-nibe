@@ -63,6 +63,12 @@ enum eTokenType {
   WRITE_TOKEN = 0x6B,
   MODBUS_WRITE_RESP = 0x6C,
   ACCESSORY_TOKEN = 0xEE,
+  ECS_DATA_MSG_1 = 0x55,
+  ECS_DATA_MSG_2 = 0xA0,
+  ECS_DATA_REQ = 0x90,
+  ECS_DATA_A3 = 0xA3,
+  ECS_DATA_A4 = 0xA4,
+  ECS_DATA_AF = 0xAF
 };
 
 enum eStartByte {
