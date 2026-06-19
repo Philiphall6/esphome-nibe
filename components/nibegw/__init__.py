@@ -62,6 +62,9 @@ class Token(IntEnum):
     ECS_DATA_REQ = 0x90
     ECS_DATA_MSG_1 = 0x55
     ECS_DATA_MSG_2 = 0xA0
+    ECS_DATA_A3 = 0xA3
+    ECS_DATA_A4 = 0xA4
+    ECS_DATA_AF = 0xAF
 
 def addresses_string(value):
     try:
