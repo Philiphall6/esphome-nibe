@@ -21,6 +21,9 @@ class NibeGwEcs : public esphome::Component {
   void set_bt2_raw_sensor(sensor::Sensor *sensor) { this->bt2_raw_sensor_ = sensor; }
   void set_bt3_raw_sensor(sensor::Sensor *sensor) { this->bt3_raw_sensor_ = sensor; }
   void set_bt50_raw_sensor(sensor::Sensor *sensor) { this->bt50_raw_sensor_ = sensor; }
+  void set_bt2_raw_default(uint16_t value) { this->bt2_raw_default_ = clamp_raw_(value); }
+  void set_bt3_raw_default(uint16_t value) { this->bt3_raw_default_ = clamp_raw_(value); }
+  void set_bt50_raw_default(uint16_t value) { this->bt50_raw_default_ = clamp_raw_(value); }
 
   void setup() override {
     if (this->gw_ == nullptr) {
@@ -31,8 +34,9 @@ class NibeGwEcs : public esphome::Component {
     this->gw_->set_request(this->address_, ECS_DATA_REQ, [this] {
       auto response = this->build_response_();
       ESP_LOGD(TAG, "ECS 0x90 addr=0x%x BT2=%u BT3=%u BT50=%u", this->address_,
-               this->sensor_raw_(this->bt2_raw_sensor_), this->sensor_raw_(this->bt3_raw_sensor_),
-               this->sensor_raw_(this->bt50_raw_sensor_));
+               this->sensor_raw_(this->bt2_raw_sensor_, this->bt2_raw_default_),
+               this->sensor_raw_(this->bt3_raw_sensor_, this->bt3_raw_default_),
+               this->sensor_raw_(this->bt50_raw_sensor_, this->bt50_raw_default_));
       return response;
     });
     this->gw_->add_acknowledge(this->address_);
@@ -44,6 +48,9 @@ class NibeGwEcs : public esphome::Component {
     LOG_SENSOR("  ", "BT2 raw", this->bt2_raw_sensor_);
     LOG_SENSOR("  ", "BT3 raw", this->bt3_raw_sensor_);
     LOG_SENSOR("  ", "BT50 raw", this->bt50_raw_sensor_);
+    ESP_LOGCONFIG(TAG, "  BT2 raw default: %u", this->bt2_raw_default_);
+    ESP_LOGCONFIG(TAG, "  BT3 raw default: %u", this->bt3_raw_default_);
+    ESP_LOGCONFIG(TAG, "  BT50 raw default: %u", this->bt50_raw_default_);
   }
 
  protected:
@@ -55,6 +62,13 @@ class NibeGwEcs : public esphome::Component {
   sensor::Sensor *bt2_raw_sensor_{nullptr};
   sensor::Sensor *bt3_raw_sensor_{nullptr};
   sensor::Sensor *bt50_raw_sensor_{nullptr};
+  uint16_t bt2_raw_default_{704};
+  uint16_t bt3_raw_default_{724};
+  uint16_t bt50_raw_default_{RAW_INVALID};
+
+  static uint16_t clamp_raw_(uint16_t value) {
+    return std::min(value, RAW_INVALID);
+  }
 
   static request_data_type set_u16_(uint16_t value) {
     return {(uint8_t) (value & 0xff), (uint8_t) ((value >> 8) & 0xff)};
@@ -78,9 +92,9 @@ class NibeGwEcs : public esphome::Component {
     return data;
   }
 
-  uint16_t sensor_raw_(sensor::Sensor *sensor) const {
+  uint16_t sensor_raw_(sensor::Sensor *sensor, uint16_t default_value) const {
     if (sensor == nullptr || !sensor->has_state() || std::isnan(sensor->state)) {
-      return RAW_INVALID;
+      return default_value;
     }
 
     auto raw = (int) lroundf(sensor->state);
@@ -95,9 +109,9 @@ class NibeGwEcs : public esphome::Component {
       payload.insert(payload.end(), bytes.begin(), bytes.end());
     };
 
-    append(sensor_raw_(this->bt2_raw_sensor_));
-    append(sensor_raw_(this->bt3_raw_sensor_));
-    append(sensor_raw_(this->bt50_raw_sensor_));
+    append(sensor_raw_(this->bt2_raw_sensor_, this->bt2_raw_default_));
+    append(sensor_raw_(this->bt3_raw_sensor_, this->bt3_raw_default_));
+    append(sensor_raw_(this->bt50_raw_sensor_, this->bt50_raw_default_));
     append(RAW_INVALID);
     append(RAW_INVALID);
     append(RAW_INVALID);
