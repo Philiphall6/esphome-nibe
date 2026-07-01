@@ -10,7 +10,7 @@ from esphome.const import (
 from esphome import pins
 from esphome.components.network import IPAddress
 from enum import IntEnum, Enum
-from esphome.components import uart, socket
+from esphome.components import uart, socket, sensor
 from esphome.types import ConfigType
 
 AUTO_LOAD = ["sensor", "climate"]
@@ -18,6 +18,7 @@ DEPENDENCIES = ["logger"]
 
 nibegw_ns = cg.esphome_ns.namespace("nibegw")
 NibeGwComponent = nibegw_ns.class_("NibeGwComponent", cg.Component, uart.UARTDevice)
+NibeGwEcs = nibegw_ns.class_("NibeGwEcs", cg.Component)
 
 CONF_DIR_PIN = "dir_pin"
 CONF_TARGET = "target"
@@ -38,6 +39,10 @@ CONF_TOKEN = "token"
 CONF_COMMAND = "command"
 CONF_DATA = "data"
 CONF_CONSTANTS = "constants"
+CONF_ECS = "ecs"
+CONF_BT2_RAW = "bt2_raw"
+CONF_BT3_RAW = "bt3_raw"
+CONF_BT50_RAW = "bt50_raw"
 
 
 class Addresses(IntEnum):
@@ -148,6 +153,18 @@ UDP_SCHEMA = cv.Schema(
     }
 )
 
+ECS_SCHEMA = cv.Schema(
+    {
+        cv.GenerateID(): cv.declare_id(NibeGwEcs),
+        cv.Optional(CONF_ADDRESS, default=Addresses.ECS_S3.value): cv.Any(
+            real_enum(Addresses), int
+        ),
+        cv.Optional(CONF_BT2_RAW): cv.use_id(sensor.Sensor),
+        cv.Optional(CONF_BT3_RAW): cv.use_id(sensor.Sensor),
+        cv.Optional(CONF_BT50_RAW): cv.use_id(sensor.Sensor),
+    }
+)
+
 CONFIG_SCHEMA = cv.All(
     cv.Schema(
         {
@@ -158,6 +175,7 @@ CONFIG_SCHEMA = cv.All(
             cv.Required(CONF_UDP): UDP_SCHEMA,
             cv.Optional(CONF_DIR_PIN): pins.gpio_output_pin_schema,
             cv.Optional(CONF_CONSTANTS, default=[]): cv.ensure_list(CONSTANTS_SCHEMA),
+            cv.Optional(CONF_ECS, default=[]): cv.ensure_list(ECS_SCHEMA),
         }
     )
     .extend(cv.COMPONENT_SCHEMA)
@@ -224,3 +242,21 @@ async def to_code(config):
             request[CONF_DATA],
         )
         cg.add(var.set_request(request[CONF_ADDRESS], request[CONF_TOKEN], data))
+
+    for ecs in config[CONF_ECS]:
+        ecs_var = cg.new_Pvariable(ecs[CONF_ID])
+        await cg.register_component(ecs_var, ecs)
+        cg.add(ecs_var.set_gw(var))
+        cg.add(ecs_var.set_address(ecs[CONF_ADDRESS]))
+
+        if CONF_BT2_RAW in ecs:
+            sens = await cg.get_variable(ecs[CONF_BT2_RAW])
+            cg.add(ecs_var.set_bt2_raw_sensor(sens))
+
+        if CONF_BT3_RAW in ecs:
+            sens = await cg.get_variable(ecs[CONF_BT3_RAW])
+            cg.add(ecs_var.set_bt3_raw_sensor(sens))
+
+        if CONF_BT50_RAW in ecs:
+            sens = await cg.get_variable(ecs[CONF_BT50_RAW])
+            cg.add(ecs_var.set_bt50_raw_sensor(sens))
