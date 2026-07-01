@@ -43,9 +43,19 @@ CONF_ECS = "ecs"
 CONF_BT2_RAW = "bt2_raw"
 CONF_BT3_RAW = "bt3_raw"
 CONF_BT50_RAW = "bt50_raw"
+CONF_W3_RAW = "w3_raw"
+CONF_W4_RAW = "w4_raw"
+CONF_W5_RAW = "w5_raw"
+CONF_W6_RAW = "w6_raw"
+CONF_W7_RAW = "w7_raw"
 CONF_BT2_RAW_DEFAULT = "bt2_raw_default"
 CONF_BT3_RAW_DEFAULT = "bt3_raw_default"
 CONF_BT50_RAW_DEFAULT = "bt50_raw_default"
+CONF_W3_RAW_DEFAULT = "w3_raw_default"
+CONF_W4_RAW_DEFAULT = "w4_raw_default"
+CONF_W5_RAW_DEFAULT = "w5_raw_default"
+CONF_W6_RAW_DEFAULT = "w6_raw_default"
+CONF_W7_RAW_DEFAULT = "w7_raw_default"
 CONF_MSG1_BINARY_SENSOR = "msg1_binary_sensor"
 CONF_MSG1_BINARY_BYTE = "msg1_binary_byte"
 CONF_MSG1_BINARY_MASK = "msg1_binary_mask"
@@ -171,9 +181,19 @@ ECS_SCHEMA = cv.Schema(
         cv.Optional(CONF_BT2_RAW): cv.use_id(sensor.Sensor),
         cv.Optional(CONF_BT3_RAW): cv.use_id(sensor.Sensor),
         cv.Optional(CONF_BT50_RAW): cv.use_id(sensor.Sensor),
+        cv.Optional(CONF_W3_RAW): cv.use_id(sensor.Sensor),
+        cv.Optional(CONF_W4_RAW): cv.use_id(sensor.Sensor),
+        cv.Optional(CONF_W5_RAW): cv.use_id(sensor.Sensor),
+        cv.Optional(CONF_W6_RAW): cv.use_id(sensor.Sensor),
+        cv.Optional(CONF_W7_RAW): cv.use_id(sensor.Sensor),
         cv.Optional(CONF_BT2_RAW_DEFAULT, default=704): cv.int_range(min=0, max=1023),
         cv.Optional(CONF_BT3_RAW_DEFAULT, default=724): cv.int_range(min=0, max=1023),
         cv.Optional(CONF_BT50_RAW_DEFAULT, default=1023): cv.int_range(min=0, max=1023),
+        cv.Optional(CONF_W3_RAW_DEFAULT, default=1023): cv.int_range(min=0, max=1023),
+        cv.Optional(CONF_W4_RAW_DEFAULT, default=1023): cv.int_range(min=0, max=1023),
+        cv.Optional(CONF_W5_RAW_DEFAULT, default=1023): cv.int_range(min=0, max=1023),
+        cv.Optional(CONF_W6_RAW_DEFAULT, default=1023): cv.int_range(min=0, max=1023),
+        cv.Optional(CONF_W7_RAW_DEFAULT, default=1023): cv.int_range(min=0, max=1023),
         cv.Optional(CONF_MSG1_BINARY_SENSOR): cv.use_id(binary_sensor.BinarySensor),
         cv.Optional(CONF_MSG1_BINARY_BYTE, default=0): cv.int_range(min=0, max=127),
         cv.Optional(CONF_MSG1_BINARY_MASK, default=0): cv.int_range(min=0, max=255),
@@ -266,6 +286,11 @@ async def to_code(config):
         cg.add(ecs_var.set_bt2_raw_default(ecs[CONF_BT2_RAW_DEFAULT]))
         cg.add(ecs_var.set_bt3_raw_default(ecs[CONF_BT3_RAW_DEFAULT]))
         cg.add(ecs_var.set_bt50_raw_default(ecs[CONF_BT50_RAW_DEFAULT]))
+        cg.add(ecs_var.set_w3_raw_default(ecs[CONF_W3_RAW_DEFAULT]))
+        cg.add(ecs_var.set_w4_raw_default(ecs[CONF_W4_RAW_DEFAULT]))
+        cg.add(ecs_var.set_w5_raw_default(ecs[CONF_W5_RAW_DEFAULT]))
+        cg.add(ecs_var.set_w6_raw_default(ecs[CONF_W6_RAW_DEFAULT]))
+        cg.add(ecs_var.set_w7_raw_default(ecs[CONF_W7_RAW_DEFAULT]))
         cg.add(ecs_var.set_msg1_binary_byte(ecs[CONF_MSG1_BINARY_BYTE]))
         cg.add(ecs_var.set_msg1_binary_mask(ecs[CONF_MSG1_BINARY_MASK]))
 
@@ -280,6 +305,26 @@ async def to_code(config):
         if CONF_BT50_RAW in ecs:
             sens = await cg.get_variable(ecs[CONF_BT50_RAW])
             cg.add(ecs_var.set_bt50_raw_sensor(sens))
+
+        if CONF_W3_RAW in ecs:
+            sens = await cg.get_variable(ecs[CONF_W3_RAW])
+            cg.add(ecs_var.set_w3_raw_sensor(sens))
+
+        if CONF_W4_RAW in ecs:
+            sens = await cg.get_variable(ecs[CONF_W4_RAW])
+            cg.add(ecs_var.set_w4_raw_sensor(sens))
+
+        if CONF_W5_RAW in ecs:
+            sens = await cg.get_variable(ecs[CONF_W5_RAW])
+            cg.add(ecs_var.set_w5_raw_sensor(sens))
+
+        if CONF_W6_RAW in ecs:
+            sens = await cg.get_variable(ecs[CONF_W6_RAW])
+            cg.add(ecs_var.set_w6_raw_sensor(sens))
+
+        if CONF_W7_RAW in ecs:
+            sens = await cg.get_variable(ecs[CONF_W7_RAW])
+            cg.add(ecs_var.set_w7_raw_sensor(sens))
 
         if CONF_MSG1_BINARY_SENSOR in ecs:
             sens = await cg.get_variable(ecs[CONF_MSG1_BINARY_SENSOR])
