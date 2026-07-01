@@ -31,12 +31,20 @@ class NibeGwEcs : public esphome::Component {
       return;
     }
 
+    this->bt2_raw_cached_ = this->bt2_raw_default_;
+    this->bt3_raw_cached_ = this->bt3_raw_default_;
+    this->bt50_raw_cached_ = this->bt50_raw_default_;
+
+    this->attach_sensor_cache_(this->bt2_raw_sensor_, this->bt2_raw_cached_, "BT2");
+    this->attach_sensor_cache_(this->bt3_raw_sensor_, this->bt3_raw_cached_, "BT3");
+    this->attach_sensor_cache_(this->bt50_raw_sensor_, this->bt50_raw_cached_, "BT50");
+    this->refresh_cache_from_sensors_();
+
     this->gw_->set_request(this->address_, ECS_DATA_REQ, [this] {
+      this->refresh_cache_from_sensors_();
       auto response = this->build_response_();
       ESP_LOGD(TAG, "ECS 0x90 addr=0x%x BT2=%u BT3=%u BT50=%u", this->address_,
-               this->sensor_raw_(this->bt2_raw_sensor_, this->bt2_raw_default_),
-               this->sensor_raw_(this->bt3_raw_sensor_, this->bt3_raw_default_),
-               this->sensor_raw_(this->bt50_raw_sensor_, this->bt50_raw_default_));
+               this->bt2_raw_cached_, this->bt3_raw_cached_, this->bt50_raw_cached_);
       return response;
     });
     this->gw_->add_acknowledge(this->address_);
@@ -65,6 +73,9 @@ class NibeGwEcs : public esphome::Component {
   uint16_t bt2_raw_default_{704};
   uint16_t bt3_raw_default_{724};
   uint16_t bt50_raw_default_{RAW_INVALID};
+  uint16_t bt2_raw_cached_{704};
+  uint16_t bt3_raw_cached_{724};
+  uint16_t bt50_raw_cached_{RAW_INVALID};
 
   static uint16_t clamp_raw_(uint16_t value) {
     return std::min(value, RAW_INVALID);
@@ -92,26 +103,56 @@ class NibeGwEcs : public esphome::Component {
     return data;
   }
 
-  uint16_t sensor_raw_(sensor::Sensor *sensor, uint16_t default_value) const {
+  bool sensor_raw_(sensor::Sensor *sensor, uint16_t &raw) const {
     if (sensor == nullptr || !sensor->has_state() || std::isnan(sensor->state)) {
-      return default_value;
+      return false;
     }
 
-    auto raw = (int) lroundf(sensor->state);
-    raw = std::clamp(raw, 0, (int) RAW_INVALID);
-    return (uint16_t) raw;
+    auto value = (int) lroundf(sensor->state);
+    value = std::clamp(value, 0, (int) RAW_INVALID);
+    raw = (uint16_t) value;
+    return true;
   }
 
-  request_data_type build_response_() const {
+  void attach_sensor_cache_(sensor::Sensor *sensor, uint16_t &cached, const char *name) {
+    if (sensor == nullptr) {
+      return;
+    }
+
+    auto *cached_ptr = &cached;
+    sensor->add_on_state_callback([this, cached_ptr, name](float state) {
+      if (std::isnan(state)) {
+        ESP_LOGD(TAG, "Ignoring NaN ECS %s raw value, keeping %u", name, *cached_ptr);
+        return;
+      }
+
+      auto raw = (int) lroundf(state);
+      raw = std::clamp(raw, 0, (int) RAW_INVALID);
+      *cached_ptr = (uint16_t) raw;
+      ESP_LOGD(TAG, "Cached ECS %s raw=%u", name, *cached_ptr);
+    });
+  }
+
+  void refresh_cache_from_sensors_() {
+    uint16_t raw;
+    if (this->sensor_raw_(this->bt2_raw_sensor_, raw))
+      this->bt2_raw_cached_ = raw;
+    if (this->sensor_raw_(this->bt3_raw_sensor_, raw))
+      this->bt3_raw_cached_ = raw;
+    if (this->sensor_raw_(this->bt50_raw_sensor_, raw))
+      this->bt50_raw_cached_ = raw;
+  }
+
+  request_data_type build_response_() {
     request_data_type payload;
     auto append = [&payload](uint16_t value) {
       auto bytes = set_u16_(value);
       payload.insert(payload.end(), bytes.begin(), bytes.end());
     };
 
-    append(sensor_raw_(this->bt2_raw_sensor_, this->bt2_raw_default_));
-    append(sensor_raw_(this->bt3_raw_sensor_, this->bt3_raw_default_));
-    append(sensor_raw_(this->bt50_raw_sensor_, this->bt50_raw_default_));
+    append(this->bt2_raw_cached_);
+    append(this->bt3_raw_cached_);
+    append(this->bt50_raw_cached_);
     append(RAW_INVALID);
     append(RAW_INVALID);
     append(RAW_INVALID);
