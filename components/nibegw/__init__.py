@@ -43,6 +43,9 @@ CONF_ECS = "ecs"
 CONF_BT2_RAW = "bt2_raw"
 CONF_BT3_RAW = "bt3_raw"
 CONF_BT50_RAW = "bt50_raw"
+CONF_BT2_RAW_DEFAULT = "bt2_raw_default"
+CONF_BT3_RAW_DEFAULT = "bt3_raw_default"
+CONF_BT50_RAW_DEFAULT = "bt50_raw_default"
 
 
 class Addresses(IntEnum):
@@ -162,6 +165,9 @@ ECS_SCHEMA = cv.Schema(
         cv.Optional(CONF_BT2_RAW): cv.use_id(sensor.Sensor),
         cv.Optional(CONF_BT3_RAW): cv.use_id(sensor.Sensor),
         cv.Optional(CONF_BT50_RAW): cv.use_id(sensor.Sensor),
+        cv.Optional(CONF_BT2_RAW_DEFAULT, default=704): cv.int_range(min=0, max=1023),
+        cv.Optional(CONF_BT3_RAW_DEFAULT, default=724): cv.int_range(min=0, max=1023),
+        cv.Optional(CONF_BT50_RAW_DEFAULT, default=1023): cv.int_range(min=0, max=1023),
     }
 )
 
@@ -248,6 +254,9 @@ async def to_code(config):
         await cg.register_component(ecs_var, ecs)
         cg.add(ecs_var.set_gw(var))
         cg.add(ecs_var.set_address(ecs[CONF_ADDRESS]))
+        cg.add(ecs_var.set_bt2_raw_default(ecs[CONF_BT2_RAW_DEFAULT]))
+        cg.add(ecs_var.set_bt3_raw_default(ecs[CONF_BT3_RAW_DEFAULT]))
+        cg.add(ecs_var.set_bt50_raw_default(ecs[CONF_BT50_RAW_DEFAULT]))
 
         if CONF_BT2_RAW in ecs:
             sens = await cg.get_variable(ecs[CONF_BT2_RAW])
