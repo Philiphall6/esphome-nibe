@@ -10,10 +10,10 @@ from esphome.const import (
 from esphome import pins
 from esphome.components.network import IPAddress
 from enum import IntEnum, Enum
-from esphome.components import uart, socket, sensor
+from esphome.components import uart, socket, sensor, binary_sensor
 from esphome.types import ConfigType
 
-AUTO_LOAD = ["sensor", "climate"]
+AUTO_LOAD = ["sensor", "binary_sensor", "climate"]
 DEPENDENCIES = ["logger"]
 
 nibegw_ns = cg.esphome_ns.namespace("nibegw")
@@ -46,10 +46,15 @@ CONF_BT50_RAW = "bt50_raw"
 CONF_BT2_RAW_DEFAULT = "bt2_raw_default"
 CONF_BT3_RAW_DEFAULT = "bt3_raw_default"
 CONF_BT50_RAW_DEFAULT = "bt50_raw_default"
+CONF_MSG1_BINARY_SENSOR = "msg1_binary_sensor"
+CONF_MSG1_BINARY_BYTE = "msg1_binary_byte"
+CONF_MSG1_BINARY_MASK = "msg1_binary_mask"
 
 
 class Addresses(IntEnum):
     AXC40 = 0x05
+    POOL310 = 0x06
+    SCA35 = 0x0A
     MODBUS40 = 0x20
     SMS40 = 0x16
     RMU40_S1 = 0x19
@@ -57,6 +62,7 @@ class Addresses(IntEnum):
     RMU40_S3 = 0x1B
     RMU40_S4 = 0x1C
     DEH500 = 0x27
+    DEH310 = 0x27
     EME20 = 0xA4
     ECS_S2 = 0x02
     ECS_S3 = 0x03
@@ -82,7 +88,7 @@ def addresses_string(value):
 
 
 def real_enum(enum: Enum):
-    return cv.enum({i.name: i.value for i in enum})
+    return cv.enum({name: item.value for name, item in enum.__members__.items()})
 
 
 def _consume_nibegw_sockets(config: ConfigType) -> ConfigType:
@@ -168,6 +174,9 @@ ECS_SCHEMA = cv.Schema(
         cv.Optional(CONF_BT2_RAW_DEFAULT, default=704): cv.int_range(min=0, max=1023),
         cv.Optional(CONF_BT3_RAW_DEFAULT, default=724): cv.int_range(min=0, max=1023),
         cv.Optional(CONF_BT50_RAW_DEFAULT, default=1023): cv.int_range(min=0, max=1023),
+        cv.Optional(CONF_MSG1_BINARY_SENSOR): cv.use_id(binary_sensor.BinarySensor),
+        cv.Optional(CONF_MSG1_BINARY_BYTE, default=0): cv.int_range(min=0, max=127),
+        cv.Optional(CONF_MSG1_BINARY_MASK, default=0): cv.int_range(min=0, max=255),
     }
 )
 
@@ -257,6 +266,8 @@ async def to_code(config):
         cg.add(ecs_var.set_bt2_raw_default(ecs[CONF_BT2_RAW_DEFAULT]))
         cg.add(ecs_var.set_bt3_raw_default(ecs[CONF_BT3_RAW_DEFAULT]))
         cg.add(ecs_var.set_bt50_raw_default(ecs[CONF_BT50_RAW_DEFAULT]))
+        cg.add(ecs_var.set_msg1_binary_byte(ecs[CONF_MSG1_BINARY_BYTE]))
+        cg.add(ecs_var.set_msg1_binary_mask(ecs[CONF_MSG1_BINARY_MASK]))
 
         if CONF_BT2_RAW in ecs:
             sens = await cg.get_variable(ecs[CONF_BT2_RAW])
@@ -269,3 +280,7 @@ async def to_code(config):
         if CONF_BT50_RAW in ecs:
             sens = await cg.get_variable(ecs[CONF_BT50_RAW])
             cg.add(ecs_var.set_bt50_raw_sensor(sens))
+
+        if CONF_MSG1_BINARY_SENSOR in ecs:
+            sens = await cg.get_variable(ecs[CONF_MSG1_BINARY_SENSOR])
+            cg.add(ecs_var.set_msg1_binary_sensor(sens))
