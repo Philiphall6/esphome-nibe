@@ -6,6 +6,7 @@
 
 #include "esphome/core/component.h"
 #include "esphome/core/log.h"
+#include "esphome/components/binary_sensor/binary_sensor.h"
 #include "esphome/components/sensor/sensor.h"
 
 #include "NibeGw.h"
@@ -24,6 +25,9 @@ class NibeGwEcs : public esphome::Component {
   void set_bt2_raw_default(uint16_t value) { this->bt2_raw_default_ = clamp_raw_(value); }
   void set_bt3_raw_default(uint16_t value) { this->bt3_raw_default_ = clamp_raw_(value); }
   void set_bt50_raw_default(uint16_t value) { this->bt50_raw_default_ = clamp_raw_(value); }
+  void set_msg1_binary_sensor(binary_sensor::BinarySensor *sensor) { this->msg1_binary_sensor_ = sensor; }
+  void set_msg1_binary_byte(uint8_t value) { this->msg1_binary_byte_ = value; }
+  void set_msg1_binary_mask(uint8_t value) { this->msg1_binary_mask_ = value; }
 
   void setup() override {
     if (this->gw_ == nullptr) {
@@ -48,6 +52,19 @@ class NibeGwEcs : public esphome::Component {
       return response;
     });
     this->gw_->add_acknowledge(this->address_);
+
+    if (this->msg1_binary_sensor_ != nullptr && this->msg1_binary_mask_ != 0) {
+      this->gw_->add_listener(this->address_, ECS_DATA_MSG_1, [this](const request_data_type &message) {
+        if (message.size() <= this->msg1_binary_byte_) {
+          ESP_LOGW(TAG, "ECS 0x55 addr=0x%x invalid length=%zu", this->address_, message.size());
+          return;
+        }
+        bool state = (message[this->msg1_binary_byte_] & this->msg1_binary_mask_) != 0;
+        ESP_LOGD(TAG, "ECS 0x55 addr=0x%x byte=%u mask=0x%02x state=%s", this->address_, this->msg1_binary_byte_,
+                 this->msg1_binary_mask_, ONOFF(state));
+        this->msg1_binary_sensor_->publish_state(state);
+      });
+    }
   }
 
   void dump_config() override {
@@ -59,6 +76,9 @@ class NibeGwEcs : public esphome::Component {
     ESP_LOGCONFIG(TAG, "  BT2 raw default: %u", this->bt2_raw_default_);
     ESP_LOGCONFIG(TAG, "  BT3 raw default: %u", this->bt3_raw_default_);
     ESP_LOGCONFIG(TAG, "  BT50 raw default: %u", this->bt50_raw_default_);
+    LOG_BINARY_SENSOR("  ", "0x55 binary", this->msg1_binary_sensor_);
+    ESP_LOGCONFIG(TAG, "  0x55 binary byte: %u", this->msg1_binary_byte_);
+    ESP_LOGCONFIG(TAG, "  0x55 binary mask: 0x%02x", this->msg1_binary_mask_);
   }
 
  protected:
@@ -76,6 +96,9 @@ class NibeGwEcs : public esphome::Component {
   uint16_t bt2_raw_cached_{704};
   uint16_t bt3_raw_cached_{724};
   uint16_t bt50_raw_cached_{RAW_INVALID};
+  binary_sensor::BinarySensor *msg1_binary_sensor_{nullptr};
+  uint8_t msg1_binary_byte_{0};
+  uint8_t msg1_binary_mask_{0};
 
   static uint16_t clamp_raw_(uint16_t value) {
     return std::min(value, RAW_INVALID);
