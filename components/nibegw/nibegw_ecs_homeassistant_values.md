@@ -267,20 +267,81 @@ nibegw:
 
 In the available idle dump, DEH310 `0x55` was `00 00`, so its pump bit is still not confirmed.
 
-## 0x55 logging
+## 0x55 logging and binary sensors
 
-The component always logs these two common byte 0 meanings:
+The component always logs these common byte 0 meanings:
 
 ```text
 mask 0x01 = pump_request
-mask 0x08 = accessory_active
+mask 0x02 = valve_request
+mask 0x04 = active
+mask 0x08 = accessory_active / accessory flag
 ```
 
 Example:
 
 ```text
-ECS 0x55 addr=0xa data=01 00 pump_request=ON accessory_active=OFF
-ECS 0x55 addr=0x6 data=08 00 pump_request=OFF accessory_active=ON
+ECS 0x55 addr=0xa data=01 00 pump_request=ON valve_request=OFF active=OFF accessory_active=OFF
+ECS 0x55 addr=0x2b data=07 00 pump_request=ON valve_request=ON active=ON accessory_active=OFF
+ECS 0x55 addr=0x6 data=08 00 pump_request=OFF valve_request=OFF active=OFF accessory_active=ON
+```
+
+You can publish these decoded states directly:
+
+```yaml
+binary_sensor:
+  - platform: template
+    id: sca35_pump_request
+    name: "SCA35 demande circulateur"
+
+  - platform: template
+    id: deh310_pump_request
+    name: "DEH310 demande circulateur"
+
+  - platform: template
+    id: cooling_pump_request
+    name: "Cooling demande circulateur"
+
+  - platform: template
+    id: cooling_valve_request
+    name: "Cooling demande vanne inversion"
+
+  - platform: template
+    id: cooling_active
+    name: "Cooling actif"
+
+nibegw:
+  ecs:
+    - address: SCA35
+      msg1_pump_request_sensor: sca35_pump_request
+
+    - address: DEH310
+      msg1_pump_request_sensor: deh310_pump_request
+
+    - address: COOLING
+      msg1_pump_request_sensor: cooling_pump_request
+      msg1_valve_request_sensor: cooling_valve_request
+      msg1_active_sensor: cooling_active
+```
+
+The older generic mapping is still supported:
+
+```yaml
+msg1_binary_sensor: my_binary_sensor
+msg1_binary_byte: 0
+msg1_binary_mask: 0x01
+```
+
+## COOLING 0x2B
+
+Confirmed from `01_froid_de_off_a_on.txt`:
+
+```text
+00 00 = all off
+04 00 = cooling active, pump off, inversion valve off
+05 00 = cooling active, pump on, inversion valve off
+07 00 = cooling active, pump on, inversion valve on
+07 29 = same byte0 state with temporary byte1 command/pulse
 ```
 
 ## Optional ACCESSORY constants

@@ -38,6 +38,10 @@ class NibeGwEcs : public esphome::Component {
   void set_msg1_binary_sensor(binary_sensor::BinarySensor *sensor) { this->msg1_binary_sensor_ = sensor; }
   void set_msg1_binary_byte(uint8_t value) { this->msg1_binary_byte_ = value; }
   void set_msg1_binary_mask(uint8_t value) { this->msg1_binary_mask_ = value; }
+  void set_msg1_pump_request_sensor(binary_sensor::BinarySensor *sensor) { this->msg1_pump_request_sensor_ = sensor; }
+  void set_msg1_valve_request_sensor(binary_sensor::BinarySensor *sensor) { this->msg1_valve_request_sensor_ = sensor; }
+  void set_msg1_active_sensor(binary_sensor::BinarySensor *sensor) { this->msg1_active_sensor_ = sensor; }
+  void set_msg1_accessory_sensor(binary_sensor::BinarySensor *sensor) { this->msg1_accessory_sensor_ = sensor; }
 
   void setup() override {
     if (this->gw_ == nullptr) {
@@ -78,9 +82,18 @@ class NibeGwEcs : public esphome::Component {
       uint8_t byte0 = message.size() > 0 ? message[0] : 0;
       uint8_t byte1 = message.size() > 1 ? message[1] : 0;
       bool pump_request = (byte0 & MSG1_PUMP_REQUEST_MASK) != 0;
+      bool valve_request = (byte0 & MSG1_VALVE_REQUEST_MASK) != 0;
+      bool active_request = (byte0 & MSG1_ACTIVE_MASK) != 0;
       bool accessory_active = (byte0 & MSG1_ACCESSORY_ACTIVE_MASK) != 0;
-      ESP_LOGD(TAG, "ECS 0x55 addr=0x%x data=%02x %02x pump_request=%s accessory_active=%s", this->address_, byte0,
-               byte1, ONOFF(pump_request), ONOFF(accessory_active));
+      ESP_LOGD(TAG,
+               "ECS 0x55 addr=0x%x data=%02x %02x pump_request=%s valve_request=%s active=%s accessory_active=%s",
+               this->address_, byte0, byte1, ONOFF(pump_request), ONOFF(valve_request), ONOFF(active_request),
+               ONOFF(accessory_active));
+
+      this->publish_optional_(this->msg1_pump_request_sensor_, pump_request);
+      this->publish_optional_(this->msg1_valve_request_sensor_, valve_request);
+      this->publish_optional_(this->msg1_active_sensor_, active_request);
+      this->publish_optional_(this->msg1_accessory_sensor_, accessory_active);
 
       if (this->msg1_binary_sensor_ == nullptr || this->msg1_binary_mask_ == 0) {
         return;
@@ -122,6 +135,10 @@ class NibeGwEcs : public esphome::Component {
     ESP_LOGCONFIG(TAG, "  W6 raw default: %u", this->w6_raw_default_);
     ESP_LOGCONFIG(TAG, "  W7 raw default: %u", this->w7_raw_default_);
     LOG_BINARY_SENSOR("  ", "0x55 binary", this->msg1_binary_sensor_);
+    LOG_BINARY_SENSOR("  ", "0x55 pump request", this->msg1_pump_request_sensor_);
+    LOG_BINARY_SENSOR("  ", "0x55 valve request", this->msg1_valve_request_sensor_);
+    LOG_BINARY_SENSOR("  ", "0x55 active", this->msg1_active_sensor_);
+    LOG_BINARY_SENSOR("  ", "0x55 accessory active", this->msg1_accessory_sensor_);
     ESP_LOGCONFIG(TAG, "  0x55 binary byte: %u", this->msg1_binary_byte_);
     ESP_LOGCONFIG(TAG, "  0x55 binary mask: 0x%02x", this->msg1_binary_mask_);
   }
@@ -130,6 +147,8 @@ class NibeGwEcs : public esphome::Component {
   static constexpr const char *TAG = "nibegw.ecs";
   static constexpr uint16_t RAW_INVALID = 0x03FF;
   static constexpr uint8_t MSG1_PUMP_REQUEST_MASK = 0x01;
+  static constexpr uint8_t MSG1_VALVE_REQUEST_MASK = 0x02;
+  static constexpr uint8_t MSG1_ACTIVE_MASK = 0x04;
   static constexpr uint8_t MSG1_ACCESSORY_ACTIVE_MASK = 0x08;
 
   NibeGwComponent *gw_{nullptr};
@@ -159,8 +178,18 @@ class NibeGwEcs : public esphome::Component {
   uint16_t w6_raw_cached_{RAW_INVALID};
   uint16_t w7_raw_cached_{RAW_INVALID};
   binary_sensor::BinarySensor *msg1_binary_sensor_{nullptr};
+  binary_sensor::BinarySensor *msg1_pump_request_sensor_{nullptr};
+  binary_sensor::BinarySensor *msg1_valve_request_sensor_{nullptr};
+  binary_sensor::BinarySensor *msg1_active_sensor_{nullptr};
+  binary_sensor::BinarySensor *msg1_accessory_sensor_{nullptr};
   uint8_t msg1_binary_byte_{0};
   uint8_t msg1_binary_mask_{0};
+
+  void publish_optional_(binary_sensor::BinarySensor *sensor, bool state) {
+    if (sensor != nullptr) {
+      sensor->publish_state(state);
+    }
+  }
 
   static uint16_t clamp_raw_(uint16_t value) {
     return std::min(value, RAW_INVALID);
