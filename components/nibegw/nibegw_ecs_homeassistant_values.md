@@ -306,13 +306,36 @@ mask 0x04 = active
 mask 0x08 = accessory_active / accessory flag
 ```
 
+It can publish the decoded states to Home Assistant as ESPHome `binary_sensor` entities:
+
+```text
+msg1_pump_request_sensor     -> byte 0 mask 0x01
+msg1_valve_request_sensor    -> byte 0 mask 0x02
+msg1_active_sensor           -> byte 0 mask 0x04
+msg1_accessory_sensor        -> byte 0 mask 0x08
+msg1_mixing_open_sensor      -> configurable value match, default byte 1 == 0x05
+msg1_mixing_close_sensor     -> configurable value match, default byte 1 == 0x06
+```
+
+The mixing valve mapping is prepared but still needs confirmation from a real opening/closing dump.
+If the dump proves different values, change these YAML options:
+
+```yaml
+msg1_mixing_open_byte: 1
+msg1_mixing_open_mask: 0xFF
+msg1_mixing_open_value: 0x05
+msg1_mixing_close_byte: 1
+msg1_mixing_close_mask: 0xFF
+msg1_mixing_close_value: 0x06
+```
+
 Example:
 
 ```text
-ECS 0x55 addr=0xa data=01 00 pump_request=ON valve_request=OFF active=OFF accessory_active=OFF
-ECS 0x55 addr=0x2b data=07 00 pump_request=ON valve_request=ON active=ON accessory_active=OFF
-ECS 0x55 addr=0x6 data=0c 00 pump_request=OFF valve_request=OFF active=ON accessory_active=ON
-ECS 0x55 addr=0x6 data=0e 00 pump_request=OFF valve_request=ON active=ON accessory_active=ON
+ECS 0x55 addr=0xa data=01 00 pump_request=ON valve_request=OFF active=OFF accessory_active=OFF mixing_open=OFF mixing_close=OFF
+ECS 0x55 addr=0x2b data=07 00 pump_request=ON valve_request=ON active=ON accessory_active=OFF mixing_open=OFF mixing_close=OFF
+ECS 0x55 addr=0x6 data=0c 00 pump_request=OFF valve_request=OFF active=ON accessory_active=ON mixing_open=OFF mixing_close=OFF
+ECS 0x55 addr=0x6 data=0e 00 pump_request=OFF valve_request=ON active=ON accessory_active=ON mixing_open=OFF mixing_close=OFF
 ```
 
 You can publish these decoded states directly:
@@ -351,8 +374,36 @@ binary_sensor:
     id: cooling_active
     name: "Cooling actif"
 
+  - platform: template
+    id: ecs_s3_accessory_active
+    name: "ECS S3 accessoire actif"
+
+  - platform: template
+    id: ecs_s3_pump_request
+    name: "ECS S3 demande circulateur"
+
+  - platform: template
+    id: ecs_s3_mixing_open
+    name: "ECS S3 vanne ouverture"
+
+  - platform: template
+    id: ecs_s3_mixing_close
+    name: "ECS S3 vanne fermeture"
+
 nibegw:
   ecs:
+    - address: ECS_S3
+      msg1_accessory_sensor: ecs_s3_accessory_active
+      msg1_pump_request_sensor: ecs_s3_pump_request
+      msg1_mixing_open_sensor: ecs_s3_mixing_open
+      msg1_mixing_close_sensor: ecs_s3_mixing_close
+      msg1_mixing_open_byte: 1
+      msg1_mixing_open_mask: 0xFF
+      msg1_mixing_open_value: 0x05
+      msg1_mixing_close_byte: 1
+      msg1_mixing_close_mask: 0xFF
+      msg1_mixing_close_value: 0x06
+
     - address: POOL310
       msg1_active_sensor: pool310_heating_request
       msg1_valve_request_sensor: pool310_valve_request

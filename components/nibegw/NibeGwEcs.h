@@ -42,6 +42,14 @@ class NibeGwEcs : public esphome::Component {
   void set_msg1_valve_request_sensor(binary_sensor::BinarySensor *sensor) { this->msg1_valve_request_sensor_ = sensor; }
   void set_msg1_active_sensor(binary_sensor::BinarySensor *sensor) { this->msg1_active_sensor_ = sensor; }
   void set_msg1_accessory_sensor(binary_sensor::BinarySensor *sensor) { this->msg1_accessory_sensor_ = sensor; }
+  void set_msg1_mixing_open_sensor(binary_sensor::BinarySensor *sensor) { this->msg1_mixing_open_sensor_ = sensor; }
+  void set_msg1_mixing_close_sensor(binary_sensor::BinarySensor *sensor) { this->msg1_mixing_close_sensor_ = sensor; }
+  void set_msg1_mixing_open_byte(uint8_t value) { this->msg1_mixing_open_byte_ = value; }
+  void set_msg1_mixing_open_mask(uint8_t value) { this->msg1_mixing_open_mask_ = value; }
+  void set_msg1_mixing_open_value(uint8_t value) { this->msg1_mixing_open_value_ = value; }
+  void set_msg1_mixing_close_byte(uint8_t value) { this->msg1_mixing_close_byte_ = value; }
+  void set_msg1_mixing_close_mask(uint8_t value) { this->msg1_mixing_close_mask_ = value; }
+  void set_msg1_mixing_close_value(uint8_t value) { this->msg1_mixing_close_value_ = value; }
 
   void setup() override {
     if (this->gw_ == nullptr) {
@@ -85,15 +93,22 @@ class NibeGwEcs : public esphome::Component {
       bool valve_request = (byte0 & MSG1_VALVE_REQUEST_MASK) != 0;
       bool active_request = (byte0 & MSG1_ACTIVE_MASK) != 0;
       bool accessory_active = (byte0 & MSG1_ACCESSORY_ACTIVE_MASK) != 0;
+      bool mixing_open = this->matches_value_(message, this->msg1_mixing_open_byte_, this->msg1_mixing_open_mask_,
+                                              this->msg1_mixing_open_value_);
+      bool mixing_close = this->matches_value_(message, this->msg1_mixing_close_byte_, this->msg1_mixing_close_mask_,
+                                               this->msg1_mixing_close_value_);
       ESP_LOGD(TAG,
-               "ECS 0x55 addr=0x%x data=%02x %02x pump_request=%s valve_request=%s active=%s accessory_active=%s",
+               "ECS 0x55 addr=0x%x data=%02x %02x pump_request=%s valve_request=%s active=%s accessory_active=%s "
+               "mixing_open=%s mixing_close=%s",
                this->address_, byte0, byte1, ONOFF(pump_request), ONOFF(valve_request), ONOFF(active_request),
-               ONOFF(accessory_active));
+               ONOFF(accessory_active), ONOFF(mixing_open), ONOFF(mixing_close));
 
       this->publish_optional_(this->msg1_pump_request_sensor_, pump_request);
       this->publish_optional_(this->msg1_valve_request_sensor_, valve_request);
       this->publish_optional_(this->msg1_active_sensor_, active_request);
       this->publish_optional_(this->msg1_accessory_sensor_, accessory_active);
+      this->publish_optional_(this->msg1_mixing_open_sensor_, mixing_open);
+      this->publish_optional_(this->msg1_mixing_close_sensor_, mixing_close);
 
       if (this->msg1_binary_sensor_ == nullptr || this->msg1_binary_mask_ == 0) {
         return;
@@ -139,8 +154,14 @@ class NibeGwEcs : public esphome::Component {
     LOG_BINARY_SENSOR("  ", "0x55 valve request", this->msg1_valve_request_sensor_);
     LOG_BINARY_SENSOR("  ", "0x55 active", this->msg1_active_sensor_);
     LOG_BINARY_SENSOR("  ", "0x55 accessory active", this->msg1_accessory_sensor_);
+    LOG_BINARY_SENSOR("  ", "0x55 mixing open", this->msg1_mixing_open_sensor_);
+    LOG_BINARY_SENSOR("  ", "0x55 mixing close", this->msg1_mixing_close_sensor_);
     ESP_LOGCONFIG(TAG, "  0x55 binary byte: %u", this->msg1_binary_byte_);
     ESP_LOGCONFIG(TAG, "  0x55 binary mask: 0x%02x", this->msg1_binary_mask_);
+    ESP_LOGCONFIG(TAG, "  0x55 mixing open byte=%u mask=0x%02x value=0x%02x", this->msg1_mixing_open_byte_,
+                  this->msg1_mixing_open_mask_, this->msg1_mixing_open_value_);
+    ESP_LOGCONFIG(TAG, "  0x55 mixing close byte=%u mask=0x%02x value=0x%02x", this->msg1_mixing_close_byte_,
+                  this->msg1_mixing_close_mask_, this->msg1_mixing_close_value_);
   }
 
  protected:
@@ -182,13 +203,28 @@ class NibeGwEcs : public esphome::Component {
   binary_sensor::BinarySensor *msg1_valve_request_sensor_{nullptr};
   binary_sensor::BinarySensor *msg1_active_sensor_{nullptr};
   binary_sensor::BinarySensor *msg1_accessory_sensor_{nullptr};
+  binary_sensor::BinarySensor *msg1_mixing_open_sensor_{nullptr};
+  binary_sensor::BinarySensor *msg1_mixing_close_sensor_{nullptr};
   uint8_t msg1_binary_byte_{0};
   uint8_t msg1_binary_mask_{0};
+  uint8_t msg1_mixing_open_byte_{1};
+  uint8_t msg1_mixing_open_mask_{0xff};
+  uint8_t msg1_mixing_open_value_{0x05};
+  uint8_t msg1_mixing_close_byte_{1};
+  uint8_t msg1_mixing_close_mask_{0xff};
+  uint8_t msg1_mixing_close_value_{0x06};
 
   void publish_optional_(binary_sensor::BinarySensor *sensor, bool state) {
     if (sensor != nullptr) {
       sensor->publish_state(state);
     }
+  }
+
+  bool matches_value_(const request_data_type &message, uint8_t byte, uint8_t mask, uint8_t value) const {
+    if (mask == 0 || message.size() <= byte) {
+      return false;
+    }
+    return (message[byte] & mask) == (value & mask);
   }
 
   static uint16_t clamp_raw_(uint16_t value) {

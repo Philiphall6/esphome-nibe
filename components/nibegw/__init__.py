@@ -63,6 +63,14 @@ CONF_MSG1_PUMP_REQUEST_SENSOR = "msg1_pump_request_sensor"
 CONF_MSG1_VALVE_REQUEST_SENSOR = "msg1_valve_request_sensor"
 CONF_MSG1_ACTIVE_SENSOR = "msg1_active_sensor"
 CONF_MSG1_ACCESSORY_SENSOR = "msg1_accessory_sensor"
+CONF_MSG1_MIXING_OPEN_SENSOR = "msg1_mixing_open_sensor"
+CONF_MSG1_MIXING_CLOSE_SENSOR = "msg1_mixing_close_sensor"
+CONF_MSG1_MIXING_OPEN_BYTE = "msg1_mixing_open_byte"
+CONF_MSG1_MIXING_OPEN_MASK = "msg1_mixing_open_mask"
+CONF_MSG1_MIXING_OPEN_VALUE = "msg1_mixing_open_value"
+CONF_MSG1_MIXING_CLOSE_BYTE = "msg1_mixing_close_byte"
+CONF_MSG1_MIXING_CLOSE_MASK = "msg1_mixing_close_mask"
+CONF_MSG1_MIXING_CLOSE_VALUE = "msg1_mixing_close_value"
 
 
 class Addresses(IntEnum):
@@ -206,6 +214,14 @@ ECS_SCHEMA = cv.Schema(
         cv.Optional(CONF_MSG1_VALVE_REQUEST_SENSOR): cv.use_id(binary_sensor.BinarySensor),
         cv.Optional(CONF_MSG1_ACTIVE_SENSOR): cv.use_id(binary_sensor.BinarySensor),
         cv.Optional(CONF_MSG1_ACCESSORY_SENSOR): cv.use_id(binary_sensor.BinarySensor),
+        cv.Optional(CONF_MSG1_MIXING_OPEN_SENSOR): cv.use_id(binary_sensor.BinarySensor),
+        cv.Optional(CONF_MSG1_MIXING_CLOSE_SENSOR): cv.use_id(binary_sensor.BinarySensor),
+        cv.Optional(CONF_MSG1_MIXING_OPEN_BYTE, default=1): cv.int_range(min=0, max=127),
+        cv.Optional(CONF_MSG1_MIXING_OPEN_MASK, default=0xFF): cv.int_range(min=0, max=255),
+        cv.Optional(CONF_MSG1_MIXING_OPEN_VALUE, default=0x05): cv.int_range(min=0, max=255),
+        cv.Optional(CONF_MSG1_MIXING_CLOSE_BYTE, default=1): cv.int_range(min=0, max=127),
+        cv.Optional(CONF_MSG1_MIXING_CLOSE_MASK, default=0xFF): cv.int_range(min=0, max=255),
+        cv.Optional(CONF_MSG1_MIXING_CLOSE_VALUE, default=0x06): cv.int_range(min=0, max=255),
     }
 )
 
@@ -302,6 +318,12 @@ async def to_code(config):
         cg.add(ecs_var.set_w7_raw_default(ecs[CONF_W7_RAW_DEFAULT]))
         cg.add(ecs_var.set_msg1_binary_byte(ecs[CONF_MSG1_BINARY_BYTE]))
         cg.add(ecs_var.set_msg1_binary_mask(ecs[CONF_MSG1_BINARY_MASK]))
+        cg.add(ecs_var.set_msg1_mixing_open_byte(ecs[CONF_MSG1_MIXING_OPEN_BYTE]))
+        cg.add(ecs_var.set_msg1_mixing_open_mask(ecs[CONF_MSG1_MIXING_OPEN_MASK]))
+        cg.add(ecs_var.set_msg1_mixing_open_value(ecs[CONF_MSG1_MIXING_OPEN_VALUE]))
+        cg.add(ecs_var.set_msg1_mixing_close_byte(ecs[CONF_MSG1_MIXING_CLOSE_BYTE]))
+        cg.add(ecs_var.set_msg1_mixing_close_mask(ecs[CONF_MSG1_MIXING_CLOSE_MASK]))
+        cg.add(ecs_var.set_msg1_mixing_close_value(ecs[CONF_MSG1_MIXING_CLOSE_VALUE]))
 
         if CONF_BT2_RAW in ecs:
             sens = await cg.get_variable(ecs[CONF_BT2_RAW])
@@ -354,3 +376,11 @@ async def to_code(config):
         if CONF_MSG1_ACCESSORY_SENSOR in ecs:
             sens = await cg.get_variable(ecs[CONF_MSG1_ACCESSORY_SENSOR])
             cg.add(ecs_var.set_msg1_accessory_sensor(sens))
+
+        if CONF_MSG1_MIXING_OPEN_SENSOR in ecs:
+            sens = await cg.get_variable(ecs[CONF_MSG1_MIXING_OPEN_SENSOR])
+            cg.add(ecs_var.set_msg1_mixing_open_sensor(sens))
+
+        if CONF_MSG1_MIXING_CLOSE_SENSOR in ecs:
+            sens = await cg.get_variable(ecs[CONF_MSG1_MIXING_CLOSE_SENSOR])
+            cg.add(ecs_var.set_msg1_mixing_close_sensor(sens))
