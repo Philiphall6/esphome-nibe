@@ -59,6 +59,10 @@ CONF_W7_RAW_DEFAULT = "w7_raw_default"
 CONF_MSG1_BINARY_SENSOR = "msg1_binary_sensor"
 CONF_MSG1_BINARY_BYTE = "msg1_binary_byte"
 CONF_MSG1_BINARY_MASK = "msg1_binary_mask"
+CONF_MSG1_PUMP_REQUEST_SENSOR = "msg1_pump_request_sensor"
+CONF_MSG1_VALVE_REQUEST_SENSOR = "msg1_valve_request_sensor"
+CONF_MSG1_ACTIVE_SENSOR = "msg1_active_sensor"
+CONF_MSG1_ACCESSORY_SENSOR = "msg1_accessory_sensor"
 
 
 class Addresses(IntEnum):
@@ -198,6 +202,10 @@ ECS_SCHEMA = cv.Schema(
         cv.Optional(CONF_MSG1_BINARY_SENSOR): cv.use_id(binary_sensor.BinarySensor),
         cv.Optional(CONF_MSG1_BINARY_BYTE, default=0): cv.int_range(min=0, max=127),
         cv.Optional(CONF_MSG1_BINARY_MASK, default=0x01): cv.int_range(min=0, max=255),
+        cv.Optional(CONF_MSG1_PUMP_REQUEST_SENSOR): cv.use_id(binary_sensor.BinarySensor),
+        cv.Optional(CONF_MSG1_VALVE_REQUEST_SENSOR): cv.use_id(binary_sensor.BinarySensor),
+        cv.Optional(CONF_MSG1_ACTIVE_SENSOR): cv.use_id(binary_sensor.BinarySensor),
+        cv.Optional(CONF_MSG1_ACCESSORY_SENSOR): cv.use_id(binary_sensor.BinarySensor),
     }
 )
 
@@ -330,3 +338,19 @@ async def to_code(config):
         if CONF_MSG1_BINARY_SENSOR in ecs:
             sens = await cg.get_variable(ecs[CONF_MSG1_BINARY_SENSOR])
             cg.add(ecs_var.set_msg1_binary_sensor(sens))
+
+        if CONF_MSG1_PUMP_REQUEST_SENSOR in ecs:
+            sens = await cg.get_variable(ecs[CONF_MSG1_PUMP_REQUEST_SENSOR])
+            cg.add(ecs_var.set_msg1_pump_request_sensor(sens))
+
+        if CONF_MSG1_VALVE_REQUEST_SENSOR in ecs:
+            sens = await cg.get_variable(ecs[CONF_MSG1_VALVE_REQUEST_SENSOR])
+            cg.add(ecs_var.set_msg1_valve_request_sensor(sens))
+
+        if CONF_MSG1_ACTIVE_SENSOR in ecs:
+            sens = await cg.get_variable(ecs[CONF_MSG1_ACTIVE_SENSOR])
+            cg.add(ecs_var.set_msg1_active_sensor(sens))
+
+        if CONF_MSG1_ACCESSORY_SENSOR in ecs:
+            sens = await cg.get_variable(ecs[CONF_MSG1_ACCESSORY_SENSOR])
+            cg.add(ecs_var.set_msg1_accessory_sensor(sens))
