@@ -2,6 +2,10 @@
 
 An ESPHome component that wraps the Arduino based udp gateway `NibeGW` up, for use with ESPHome configuration.
 
+> [!NOTE]
+> This fork also contains experimental complementary work for AXC/ECS style accessory emulation.
+> See [NibeGW AXC/accessory emulation notes](./components/nibegw/README_AXC_ACCESSORIES.md).
+
 NibeGW is known to work also on Nibe clone pumps. For example, Jämä STAR RST 6 corresponds to Nibe F1245 and works without modifications.
 
 ## Background
