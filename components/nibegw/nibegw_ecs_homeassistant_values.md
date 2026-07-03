@@ -145,11 +145,19 @@ POOL310 W2 / bt50_raw = BT59 pool supply temperature
 Observed `0x55` data:
 
 ```text
-POOL310 0x55 = 08 00
+00 00 = off
+0C 00 = active/heating request + accessory flag
+0E 00 = active/heating request + diverter valve + accessory flag
 ```
 
-In the newer SCA35 hot-water/solar dump, `0x01` is the best confirmed candidate for a pump request.
-For POOL310, `0x08` appears without `0x01`, so it is logged as `accessory_active` rather than as the generic pump request.
+For POOL310, `0x08` is not the pump request in the available dumps. It behaves like an accessory flag.
+The useful POOL310 byte 0 bits are:
+
+```text
+0x02 = diverter/reversing valve request
+0x04 = pool active / heating request
+0x08 = accessory active / accessory flag
+```
 
 Example:
 
@@ -167,8 +175,16 @@ sensor:
 
 binary_sensor:
   - platform: template
-    id: pool310_pump_request
-    name: "POOL310 demande circulateur"
+    id: pool310_heating_request
+    name: "POOL310 demande chauffage"
+
+  - platform: template
+    id: pool310_valve_request
+    name: "POOL310 demande vanne inversion"
+
+  - platform: template
+    id: pool310_accessory_active
+    name: "POOL310 accessoire actif"
 
 nibegw:
   id: my_nibegw
@@ -183,16 +199,16 @@ nibegw:
       bt3_raw_default: 1023
       bt50_raw: pool_bt59_raw
       bt50_raw_default: 688
-      msg1_binary_sensor: pool310_pump_request
-      msg1_binary_byte: 0
-      msg1_binary_mask: 0x08
+      msg1_active_sensor: pool310_heating_request
+      msg1_valve_request_sensor: pool310_valve_request
+      msg1_accessory_sensor: pool310_accessory_active
 ```
 
-When the heat pump sends `0x55 = 08 00`, logs should show:
+When the heat pump sends POOL310 states, logs should show:
 
 ```text
-ECS 0x55 addr=0x6 data=08 00 pump_request=OFF accessory_active=ON
-ECS 0x55 addr=0x6 configured_binary byte=0 mask=0x08 state=ON
+ECS 0x55 addr=0x6 data=0c 00 pump_request=OFF valve_request=OFF active=ON accessory_active=ON
+ECS 0x55 addr=0x6 data=0e 00 pump_request=OFF valve_request=ON active=ON accessory_active=ON
 ```
 
 ## SCA35 and DEH310
@@ -243,6 +259,18 @@ sensor:
 
 binary_sensor:
   - platform: template
+    id: pool310_heating_request
+    name: "POOL310 demande chauffage"
+
+  - platform: template
+    id: pool310_valve_request
+    name: "POOL310 demande vanne inversion"
+
+  - platform: template
+    id: pool310_accessory_active
+    name: "POOL310 accessoire actif"
+
+  - platform: template
     id: sca35_pump_request
     name: "SCA35 demande circulateur"
 
@@ -283,13 +311,26 @@ Example:
 ```text
 ECS 0x55 addr=0xa data=01 00 pump_request=ON valve_request=OFF active=OFF accessory_active=OFF
 ECS 0x55 addr=0x2b data=07 00 pump_request=ON valve_request=ON active=ON accessory_active=OFF
-ECS 0x55 addr=0x6 data=08 00 pump_request=OFF valve_request=OFF active=OFF accessory_active=ON
+ECS 0x55 addr=0x6 data=0c 00 pump_request=OFF valve_request=OFF active=ON accessory_active=ON
+ECS 0x55 addr=0x6 data=0e 00 pump_request=OFF valve_request=ON active=ON accessory_active=ON
 ```
 
 You can publish these decoded states directly:
 
 ```yaml
 binary_sensor:
+  - platform: template
+    id: pool310_heating_request
+    name: "POOL310 demande chauffage"
+
+  - platform: template
+    id: pool310_valve_request
+    name: "POOL310 demande vanne inversion"
+
+  - platform: template
+    id: pool310_accessory_active
+    name: "POOL310 accessoire actif"
+
   - platform: template
     id: sca35_pump_request
     name: "SCA35 demande circulateur"
@@ -312,6 +353,11 @@ binary_sensor:
 
 nibegw:
   ecs:
+    - address: POOL310
+      msg1_active_sensor: pool310_heating_request
+      msg1_valve_request_sensor: pool310_valve_request
+      msg1_accessory_sensor: pool310_accessory_active
+
     - address: SCA35
       msg1_pump_request_sensor: sca35_pump_request
 
@@ -322,6 +368,15 @@ nibegw:
       msg1_pump_request_sensor: cooling_pump_request
       msg1_valve_request_sensor: cooling_valve_request
       msg1_active_sensor: cooling_active
+```
+
+Observed accessory families:
+
+```text
+SCA35  = circulator only
+DEH310 = circulator only
+POOL310 = active/heating request + reversing/diverter valve + accessory flag
+COOLING = circulator + reversing valve + active state
 ```
 
 The older generic mapping is still supported:
@@ -367,17 +422,7 @@ constants:
     data: [0x01, 0x0F, 0xA2]
 ```
 
-For POOL310, these constants may also be useful:
-
-```yaml
-  - address: POOL310
-    token: ECS_DATA_MSG_1
-    data: [0x02, 0x08, 0x00]
-
-  - address: POOL310
-    token: ECS_DATA_MSG_2
-    data: [0x02, 0x64, 0x00]
-```
+For `0x55`, `0x90`, and `0xA0`, prefer the dynamic `ecs:` block rather than constants for the same address.
 
 ## Debug logging
 
