@@ -74,18 +74,32 @@ class NibeGwEcs : public esphome::Component {
     });
     this->gw_->add_acknowledge(this->address_);
 
-    if (this->msg1_binary_sensor_ != nullptr && this->msg1_binary_mask_ != 0) {
-      this->gw_->add_listener(this->address_, ECS_DATA_MSG_1, [this](const request_data_type &message) {
-        if (message.size() <= this->msg1_binary_byte_) {
-          ESP_LOGW(TAG, "ECS 0x55 addr=0x%x invalid length=%zu", this->address_, message.size());
-          return;
-        }
-        bool state = (message[this->msg1_binary_byte_] & this->msg1_binary_mask_) != 0;
-        ESP_LOGD(TAG, "ECS 0x55 addr=0x%x byte=%u mask=0x%02x state=%s", this->address_, this->msg1_binary_byte_,
-                 this->msg1_binary_mask_, ONOFF(state));
-        this->msg1_binary_sensor_->publish_state(state);
-      });
-    }
+    this->gw_->add_listener(this->address_, ECS_DATA_MSG_1, [this](const request_data_type &message) {
+      uint8_t byte0 = message.size() > 0 ? message[0] : 0;
+      uint8_t byte1 = message.size() > 1 ? message[1] : 0;
+      bool pump_request = (byte0 & MSG1_PUMP_REQUEST_MASK) != 0;
+      bool accessory_active = (byte0 & MSG1_ACCESSORY_ACTIVE_MASK) != 0;
+      ESP_LOGD(TAG, "ECS 0x55 addr=0x%x data=%02x %02x pump_request=%s accessory_active=%s", this->address_, byte0,
+               byte1, ONOFF(pump_request), ONOFF(accessory_active));
+
+      if (this->msg1_binary_sensor_ == nullptr || this->msg1_binary_mask_ == 0) {
+        return;
+      }
+      if (message.size() <= this->msg1_binary_byte_) {
+        ESP_LOGW(TAG, "ECS 0x55 addr=0x%x invalid length=%zu", this->address_, message.size());
+        return;
+      }
+      bool state = (message[this->msg1_binary_byte_] & this->msg1_binary_mask_) != 0;
+      ESP_LOGD(TAG, "ECS 0x55 addr=0x%x configured_binary byte=%u mask=0x%02x state=%s", this->address_,
+               this->msg1_binary_byte_, this->msg1_binary_mask_, ONOFF(state));
+      this->msg1_binary_sensor_->publish_state(state);
+    });
+
+    this->gw_->add_listener(this->address_, ECS_DATA_MSG_2, [this](const request_data_type &message) {
+      uint8_t byte0 = message.size() > 0 ? message[0] : 0;
+      uint8_t byte1 = message.size() > 1 ? message[1] : 0;
+      ESP_LOGD(TAG, "ECS 0xA0 addr=0x%x data=%02x %02x", this->address_, byte0, byte1);
+    });
   }
 
   void dump_config() override {
@@ -115,6 +129,8 @@ class NibeGwEcs : public esphome::Component {
  protected:
   static constexpr const char *TAG = "nibegw.ecs";
   static constexpr uint16_t RAW_INVALID = 0x03FF;
+  static constexpr uint8_t MSG1_PUMP_REQUEST_MASK = 0x01;
+  static constexpr uint8_t MSG1_ACCESSORY_ACTIVE_MASK = 0x08;
 
   NibeGwComponent *gw_{nullptr};
   uint16_t address_{ECS_S3};

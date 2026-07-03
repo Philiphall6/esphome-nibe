@@ -65,6 +65,7 @@ class Addresses(IntEnum):
     AXC40 = 0x05
     POOL310 = 0x06
     SCA35 = 0x0A
+    COOLING = 0x2B
     MODBUS40 = 0x20
     SMS40 = 0x16
     RMU40_S1 = 0x19
@@ -196,7 +197,7 @@ ECS_SCHEMA = cv.Schema(
         cv.Optional(CONF_W7_RAW_DEFAULT, default=1023): cv.int_range(min=0, max=1023),
         cv.Optional(CONF_MSG1_BINARY_SENSOR): cv.use_id(binary_sensor.BinarySensor),
         cv.Optional(CONF_MSG1_BINARY_BYTE, default=0): cv.int_range(min=0, max=127),
-        cv.Optional(CONF_MSG1_BINARY_MASK, default=0): cv.int_range(min=0, max=255),
+        cv.Optional(CONF_MSG1_BINARY_MASK, default=0x01): cv.int_range(min=0, max=255),
     }
 )
 
