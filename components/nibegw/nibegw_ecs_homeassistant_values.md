@@ -317,6 +317,18 @@ msg1_mixing_open_sensor      -> configurable value match, default byte 1 == 0x05
 msg1_mixing_close_sensor     -> configurable value match, default byte 1 == 0x06
 ```
 
+The generic byte 0 masks are configurable:
+
+```yaml
+msg1_pump_request_mask: 0x01
+msg1_valve_request_mask: 0x02
+msg1_active_mask: 0x04
+msg1_accessory_mask: 0x08
+```
+
+Set a mask to `0x00` to disable that decoded state for one accessory.
+This is useful for ECS/AXC because `0x55 = 02 00` appears regularly on S3 and should not be interpreted as a reversing valve command.
+
 The mixing valve mapping is prepared but still needs confirmation from a real opening/closing dump.
 If the dump proves different values, change these YAML options:
 
@@ -395,6 +407,7 @@ nibegw:
     - address: ECS_S3
       msg1_accessory_sensor: ecs_s3_accessory_active
       msg1_pump_request_sensor: ecs_s3_pump_request
+      msg1_valve_request_mask: 0x00
       msg1_mixing_open_sensor: ecs_s3_mixing_open
       msg1_mixing_close_sensor: ecs_s3_mixing_close
       msg1_mixing_open_byte: 1

@@ -63,6 +63,10 @@ CONF_MSG1_PUMP_REQUEST_SENSOR = "msg1_pump_request_sensor"
 CONF_MSG1_VALVE_REQUEST_SENSOR = "msg1_valve_request_sensor"
 CONF_MSG1_ACTIVE_SENSOR = "msg1_active_sensor"
 CONF_MSG1_ACCESSORY_SENSOR = "msg1_accessory_sensor"
+CONF_MSG1_PUMP_REQUEST_MASK = "msg1_pump_request_mask"
+CONF_MSG1_VALVE_REQUEST_MASK = "msg1_valve_request_mask"
+CONF_MSG1_ACTIVE_MASK = "msg1_active_mask"
+CONF_MSG1_ACCESSORY_MASK = "msg1_accessory_mask"
 CONF_MSG1_MIXING_OPEN_SENSOR = "msg1_mixing_open_sensor"
 CONF_MSG1_MIXING_CLOSE_SENSOR = "msg1_mixing_close_sensor"
 CONF_MSG1_MIXING_OPEN_BYTE = "msg1_mixing_open_byte"
@@ -214,6 +218,10 @@ ECS_SCHEMA = cv.Schema(
         cv.Optional(CONF_MSG1_VALVE_REQUEST_SENSOR): cv.use_id(binary_sensor.BinarySensor),
         cv.Optional(CONF_MSG1_ACTIVE_SENSOR): cv.use_id(binary_sensor.BinarySensor),
         cv.Optional(CONF_MSG1_ACCESSORY_SENSOR): cv.use_id(binary_sensor.BinarySensor),
+        cv.Optional(CONF_MSG1_PUMP_REQUEST_MASK, default=0x01): cv.int_range(min=0, max=255),
+        cv.Optional(CONF_MSG1_VALVE_REQUEST_MASK, default=0x02): cv.int_range(min=0, max=255),
+        cv.Optional(CONF_MSG1_ACTIVE_MASK, default=0x04): cv.int_range(min=0, max=255),
+        cv.Optional(CONF_MSG1_ACCESSORY_MASK, default=0x08): cv.int_range(min=0, max=255),
         cv.Optional(CONF_MSG1_MIXING_OPEN_SENSOR): cv.use_id(binary_sensor.BinarySensor),
         cv.Optional(CONF_MSG1_MIXING_CLOSE_SENSOR): cv.use_id(binary_sensor.BinarySensor),
         cv.Optional(CONF_MSG1_MIXING_OPEN_BYTE, default=1): cv.int_range(min=0, max=127),
@@ -318,6 +326,10 @@ async def to_code(config):
         cg.add(ecs_var.set_w7_raw_default(ecs[CONF_W7_RAW_DEFAULT]))
         cg.add(ecs_var.set_msg1_binary_byte(ecs[CONF_MSG1_BINARY_BYTE]))
         cg.add(ecs_var.set_msg1_binary_mask(ecs[CONF_MSG1_BINARY_MASK]))
+        cg.add(ecs_var.set_msg1_pump_request_mask(ecs[CONF_MSG1_PUMP_REQUEST_MASK]))
+        cg.add(ecs_var.set_msg1_valve_request_mask(ecs[CONF_MSG1_VALVE_REQUEST_MASK]))
+        cg.add(ecs_var.set_msg1_active_mask(ecs[CONF_MSG1_ACTIVE_MASK]))
+        cg.add(ecs_var.set_msg1_accessory_mask(ecs[CONF_MSG1_ACCESSORY_MASK]))
         cg.add(ecs_var.set_msg1_mixing_open_byte(ecs[CONF_MSG1_MIXING_OPEN_BYTE]))
         cg.add(ecs_var.set_msg1_mixing_open_mask(ecs[CONF_MSG1_MIXING_OPEN_MASK]))
         cg.add(ecs_var.set_msg1_mixing_open_value(ecs[CONF_MSG1_MIXING_OPEN_VALUE]))

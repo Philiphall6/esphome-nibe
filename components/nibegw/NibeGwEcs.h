@@ -42,6 +42,10 @@ class NibeGwEcs : public esphome::Component {
   void set_msg1_valve_request_sensor(binary_sensor::BinarySensor *sensor) { this->msg1_valve_request_sensor_ = sensor; }
   void set_msg1_active_sensor(binary_sensor::BinarySensor *sensor) { this->msg1_active_sensor_ = sensor; }
   void set_msg1_accessory_sensor(binary_sensor::BinarySensor *sensor) { this->msg1_accessory_sensor_ = sensor; }
+  void set_msg1_pump_request_mask(uint8_t value) { this->msg1_pump_request_mask_ = value; }
+  void set_msg1_valve_request_mask(uint8_t value) { this->msg1_valve_request_mask_ = value; }
+  void set_msg1_active_mask(uint8_t value) { this->msg1_active_mask_ = value; }
+  void set_msg1_accessory_mask(uint8_t value) { this->msg1_accessory_mask_ = value; }
   void set_msg1_mixing_open_sensor(binary_sensor::BinarySensor *sensor) { this->msg1_mixing_open_sensor_ = sensor; }
   void set_msg1_mixing_close_sensor(binary_sensor::BinarySensor *sensor) { this->msg1_mixing_close_sensor_ = sensor; }
   void set_msg1_mixing_open_byte(uint8_t value) { this->msg1_mixing_open_byte_ = value; }
@@ -89,10 +93,10 @@ class NibeGwEcs : public esphome::Component {
     this->gw_->add_listener(this->address_, ECS_DATA_MSG_1, [this](const request_data_type &message) {
       uint8_t byte0 = message.size() > 0 ? message[0] : 0;
       uint8_t byte1 = message.size() > 1 ? message[1] : 0;
-      bool pump_request = (byte0 & MSG1_PUMP_REQUEST_MASK) != 0;
-      bool valve_request = (byte0 & MSG1_VALVE_REQUEST_MASK) != 0;
-      bool active_request = (byte0 & MSG1_ACTIVE_MASK) != 0;
-      bool accessory_active = (byte0 & MSG1_ACCESSORY_ACTIVE_MASK) != 0;
+      bool pump_request = this->matches_mask_(byte0, this->msg1_pump_request_mask_);
+      bool valve_request = this->matches_mask_(byte0, this->msg1_valve_request_mask_);
+      bool active_request = this->matches_mask_(byte0, this->msg1_active_mask_);
+      bool accessory_active = this->matches_mask_(byte0, this->msg1_accessory_mask_);
       bool mixing_open = this->matches_value_(message, this->msg1_mixing_open_byte_, this->msg1_mixing_open_mask_,
                                               this->msg1_mixing_open_value_);
       bool mixing_close = this->matches_value_(message, this->msg1_mixing_close_byte_, this->msg1_mixing_close_mask_,
@@ -158,6 +162,10 @@ class NibeGwEcs : public esphome::Component {
     LOG_BINARY_SENSOR("  ", "0x55 mixing close", this->msg1_mixing_close_sensor_);
     ESP_LOGCONFIG(TAG, "  0x55 binary byte: %u", this->msg1_binary_byte_);
     ESP_LOGCONFIG(TAG, "  0x55 binary mask: 0x%02x", this->msg1_binary_mask_);
+    ESP_LOGCONFIG(TAG, "  0x55 pump request mask: 0x%02x", this->msg1_pump_request_mask_);
+    ESP_LOGCONFIG(TAG, "  0x55 valve request mask: 0x%02x", this->msg1_valve_request_mask_);
+    ESP_LOGCONFIG(TAG, "  0x55 active mask: 0x%02x", this->msg1_active_mask_);
+    ESP_LOGCONFIG(TAG, "  0x55 accessory mask: 0x%02x", this->msg1_accessory_mask_);
     ESP_LOGCONFIG(TAG, "  0x55 mixing open byte=%u mask=0x%02x value=0x%02x", this->msg1_mixing_open_byte_,
                   this->msg1_mixing_open_mask_, this->msg1_mixing_open_value_);
     ESP_LOGCONFIG(TAG, "  0x55 mixing close byte=%u mask=0x%02x value=0x%02x", this->msg1_mixing_close_byte_,
@@ -167,10 +175,6 @@ class NibeGwEcs : public esphome::Component {
  protected:
   static constexpr const char *TAG = "nibegw.ecs";
   static constexpr uint16_t RAW_INVALID = 0x03FF;
-  static constexpr uint8_t MSG1_PUMP_REQUEST_MASK = 0x01;
-  static constexpr uint8_t MSG1_VALVE_REQUEST_MASK = 0x02;
-  static constexpr uint8_t MSG1_ACTIVE_MASK = 0x04;
-  static constexpr uint8_t MSG1_ACCESSORY_ACTIVE_MASK = 0x08;
 
   NibeGwComponent *gw_{nullptr};
   uint16_t address_{ECS_S3};
@@ -207,6 +211,10 @@ class NibeGwEcs : public esphome::Component {
   binary_sensor::BinarySensor *msg1_mixing_close_sensor_{nullptr};
   uint8_t msg1_binary_byte_{0};
   uint8_t msg1_binary_mask_{0};
+  uint8_t msg1_pump_request_mask_{0x01};
+  uint8_t msg1_valve_request_mask_{0x02};
+  uint8_t msg1_active_mask_{0x04};
+  uint8_t msg1_accessory_mask_{0x08};
   uint8_t msg1_mixing_open_byte_{1};
   uint8_t msg1_mixing_open_mask_{0xff};
   uint8_t msg1_mixing_open_value_{0x05};
@@ -225,6 +233,10 @@ class NibeGwEcs : public esphome::Component {
       return false;
     }
     return (message[byte] & mask) == (value & mask);
+  }
+
+  bool matches_mask_(uint8_t value, uint8_t mask) const {
+    return mask != 0 && (value & mask) != 0;
   }
 
   static uint16_t clamp_raw_(uint16_t value) {
