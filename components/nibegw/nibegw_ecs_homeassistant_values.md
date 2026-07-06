@@ -294,6 +294,8 @@ nibegw:
 ```
 
 In the available idle dump, DEH310 `0x55` was `00 00`, so its pump bit is still not confirmed.
+Later tests also observed `0x08` on DEH310.
+Map this first as `msg1_accessory_sensor` unless a dump confirms it is directly the GP15 pump command.
 
 ## 0x55 logging and binary sensors
 
@@ -375,6 +377,10 @@ binary_sensor:
     name: "DEH310 demande circulateur"
 
   - platform: template
+    id: deh310_accessory_active
+    name: "DEH310 accessoire actif"
+
+  - platform: template
     id: cooling_pump_request
     name: "Cooling demande circulateur"
 
@@ -427,6 +433,7 @@ nibegw:
 
     - address: DEH310
       msg1_pump_request_sensor: deh310_pump_request
+      msg1_accessory_sensor: deh310_accessory_active
 
     - address: COOLING
       msg1_pump_request_sensor: cooling_pump_request
