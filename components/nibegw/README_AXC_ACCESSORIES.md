@@ -1,15 +1,15 @@
-# NibeGW - complementary AXC/accessory emulation work
+# NibeGW AXC/Accessory Emulation Notes
 
-## Remerciements
+## Acknowledgements
 
-Ce travail est base sur le composant ESPHome `nibegw` et sur le travail de son auteur original.
-Merci a l'auteur et aux contributeurs du projet `esphome-nibe` pour la passerelle NibeGW, le support UDP/RS485, l'emulation RMU et la base qui permet aujourd'hui d'experimenter avec les accessoires Nibe.
+This work is based on the ESPHome `nibegw` component and on the original author's work.
+Thank you to the author and contributors of `esphome-nibe` for the NibeGW gateway, UDP/RS485 support, RMU emulation, and the foundation that makes this accessory experimentation possible.
 
-Cette branche ne remplace pas le projet d'origine. Elle ajoute un travail complementaire autour de l'emulation d'accessoires de type AXC/ECS afin de tester des circuits climatiques, circulateurs, sondes et vannes depuis ESPHome et Home Assistant.
+This branch does not replace the original project. It adds complementary experimental work around AXC/ECS-style accessory emulation, with the goal of testing climate circuits, pumps, sensors, reversing valves, and mixing valves from ESPHome and Home Assistant.
 
-## Objectif
+## Goal
 
-L'objectif est d'emuler certains accessoires Nibe sur le bus NibeGW, avec des valeurs provenant de Home Assistant:
+The goal is to emulate selected Nibe accessories on the NibeGW bus, using values provided by Home Assistant:
 
 ```text
 ECS_S3  = 0x03
@@ -19,18 +19,18 @@ DEH310  = 0x27
 COOLING = 0x2B
 ```
 
-Le but principal est de pouvoir:
+The main objectives are:
 
-- envoyer les temperatures/valeurs raw attendues par la PAC via le token `0x90`;
-- recuperer les demandes de la PAC via le token `0x55`;
-- publier ces demandes dans Home Assistant en `binary_sensor`;
-- preparer le decodage des commandes de vanne de melange.
+- send the raw temperature/sensor values expected by the heat pump through token `0x90`;
+- receive heat-pump commands and states from token `0x55`;
+- expose these commands and states to Home Assistant as ESPHome `binary_sensor` entities;
+- prepare configurable decoding for ECS/AXC mixing valve open/close commands.
 
-## Modifications ajoutees
+## Added Features
 
-### Bloc YAML `ecs:`
+### YAML `ecs:` Block
 
-Le composant `nibegw` accepte maintenant un bloc `ecs:` pour declarer un accessoire dynamique:
+The `nibegw` component now accepts an `ecs:` block to declare dynamic accessory emulators:
 
 ```yaml
 nibegw:
@@ -49,17 +49,17 @@ nibegw:
       bt50_raw: s3_bt50_raw
 ```
 
-Chaque entree `ecs:` cree une reponse dynamique au token `0x90`.
+Each `ecs:` entry creates a dynamic reply for token `0x90`.
 
-### Reponse dynamique `0x90`
+### Dynamic `0x90` Response
 
-La reponse `0x90` contient 8 mots raw little-endian:
+The `0x90` response contains 8 little-endian raw 16-bit words:
 
 ```text
 W0 W1 W2 W3 W4 W5 W6 W7
 ```
 
-Mapping YAML:
+YAML mapping:
 
 ```text
 bt2_raw  -> W0
@@ -72,12 +72,12 @@ w6_raw   -> W6
 w7_raw   -> W7
 ```
 
-Les valeurs peuvent venir de `sensor.homeassistant`, par exemple des `input_number`.
-Le composant garde aussi un cache de la derniere valeur valide recue afin de continuer a repondre a la PAC.
+Values can come from ESPHome `sensor.homeassistant` entities, for example Home Assistant `input_number` helpers.
+The component also caches the last valid value received from Home Assistant so it can keep replying to the heat pump if a value is not immediately available.
 
-### Etats PAC vers Home Assistant
+### Heat Pump States to Home Assistant
 
-Le token `0x55` est ecoute et peut publier des etats vers Home Assistant:
+Token `0x55` is listened to and can publish decoded states to Home Assistant:
 
 ```yaml
 msg1_pump_request_sensor: sca35_pump_request
@@ -88,7 +88,7 @@ msg1_mixing_open_sensor: ecs_s3_mixing_open
 msg1_mixing_close_sensor: ecs_s3_mixing_close
 ```
 
-Les masques generiques sont configurables:
+The generic byte-0 masks are configurable:
 
 ```yaml
 msg1_pump_request_mask: 0x01
@@ -97,19 +97,19 @@ msg1_active_mask: 0x04
 msg1_accessory_mask: 0x08
 ```
 
-Un masque peut etre mis a `0x00` pour desactiver un decodage sur un accessoire donne.
-C'est utile pour `ECS_S3`, car la trame `0x55 = 02 00` apparait souvent et ne doit pas forcement etre interpretee comme une vanne d'inversion.
+Set a mask to `0x00` to disable that decoded state for one accessory.
+This is useful for ECS/AXC because `0x55 = 02 00` appears frequently on S3 and should not automatically be treated as a reversing valve command.
 
-### Preparation vanne de melange
+### Mixing Valve Preparation
 
-Deux sorties sont prevues pour la vanne de melange:
+Two outputs are prepared for ECS/AXC mixing valve commands:
 
 ```yaml
 msg1_mixing_open_sensor: ecs_s3_mixing_open
 msg1_mixing_close_sensor: ecs_s3_mixing_close
 ```
 
-Le decodage est configurable:
+The decoding is configurable:
 
 ```yaml
 msg1_mixing_open_byte: 1
@@ -120,13 +120,13 @@ msg1_mixing_close_mask: 0xFF
 msg1_mixing_close_value: 0x06
 ```
 
-Ces valeurs sont une preparation de travail. Elles devront etre confirmees avec un dump reel ou la PAC commande explicitement l'ouverture et la fermeture de la vanne de melange.
+These values are working assumptions. They must be confirmed with a real dump where the heat pump explicitly commands the mixing valve to open and close.
 
-## Observations issues des dumps
+## Observations From Dumps
 
 ### ECS / AXC
 
-Pour `ECS_S3`:
+For `ECS_S3`:
 
 ```text
 W0 = BT2
@@ -134,96 +134,121 @@ W1 = BT3
 W2 = BT50
 ```
 
-La trame `0x55 = 02 00` est frequente. Elle est conservee dans les logs, mais le decodage `valve_request` peut etre desactive par YAML.
+The frame `0x55 = 02 00` appears frequently.
+It is still logged, but the generic `valve_request` decoding can be disabled in YAML with:
+
+```yaml
+msg1_valve_request_mask: 0x00
+```
 
 ### POOL310
 
-Pour `POOL310`:
+For `POOL310`:
 
 ```text
-W0 = BT51 retour piscine
-W1 = inutilise / 1023
-W2 = BT59 depart piscine
+W0 = BT51 pool return temperature
+W1 = unused / 1023
+W2 = BT59 pool supply temperature
 ```
 
-Etats observes sur `0x55`:
+Observed `0x55` states:
 
 ```text
 00 00 = off
-0C 00 = demande piscine active + flag accessoire
-0E 00 = demande piscine active + vanne inversion + flag accessoire
+0C 00 = pool active/heating request + accessory flag
+0E 00 = pool active/heating request + reversing valve + accessory flag
 ```
 
-Interpretation actuelle:
+Current interpretation:
 
 ```text
-0x02 = vanne inversion
-0x04 = demande active / chauffage piscine
-0x08 = accessoire actif / flag accessoire
+0x02 = reversing/diverter valve
+0x04 = active request / pool heating request
+0x08 = accessory active / accessory flag
 ```
 
 ### SCA35
 
-Pour `SCA35`:
+For `SCA35`:
 
 ```text
-W0 = BT53 temperature panneau solaire
-W1 = BT54 temperature charge solaire
-W2 = EP30-BT51 / troisieme sonde selon configuration
+W0 = BT53 solar panel temperature
+W1 = BT54 solar load temperature
+W2 = EP30-BT51 / third solar sensor depending on configuration
 ```
 
-Un passage `0x55 = 01 00` a ete observe lorsque la temperature solaire monte.
-Interpretation actuelle:
+A transition to `0x55 = 01 00` was observed when the solar temperature increased.
+Current interpretation:
 
 ```text
-0x01 = demande solaire / circulateur probable
+0x01 = solar request / likely circulation pump request
 ```
 
 ### DEH310
 
-Pour `DEH310`:
+For `DEH310`:
 
 ```text
-W0 = BT52 chaudiere
+W0 = BT52 boiler temperature
 W1 = 1023
 W2 = 1023
 ```
 
-Dans les dumps disponibles, la demande circulateur n'a pas encore ete confirmee: `0x55` restait a `00 00`.
+Additional observation:
+
+```text
+0x55 byte 0 mask 0x08 = active state also observed on DEH310
+```
+
+As with POOL310, `0x08` should be treated carefully.
+It may be an accessory-active flag or a request related to the accessory depending on the operating context.
+
+Recommended first mapping:
+
+```yaml
+msg1_accessory_sensor: deh310_accessory_active
+```
+
+If a later dump confirms that `0x08` directly represents the GP15 charge pump command, it can also be mapped as:
+
+```yaml
+msg1_pump_request_mask: 0x08
+msg1_pump_request_sensor: deh310_gp15_request
+```
 
 ### COOLING
 
-Pour `COOLING`:
+For `COOLING`:
 
 ```text
-04 00 = refroidissement actif
-05 00 = refroidissement actif + circulateur
-07 00 = refroidissement actif + circulateur + vanne inversion
+04 00 = cooling active
+05 00 = cooling active + pump
+07 00 = cooling active + pump + reversing valve
 ```
 
-Interpretation actuelle:
+Current interpretation:
 
 ```text
-0x01 = circulateur
-0x02 = vanne inversion
-0x04 = demande active
+0x01 = pump
+0x02 = reversing valve
+0x04 = active request
 ```
 
-## Exemple Home Assistant
+## Home Assistant Example
 
 ```yaml
 binary_sensor:
   - platform: template
     id: pool310_heating_request
-    name: "POOL310 demande chauffage"
+    name: "POOL310 heating request"
 
   - platform: template
     id: pool310_valve_request
-    name: "POOL310 vanne inversion"
+    name: "POOL310 reversing valve"
 
   - platform: template
     id: pool310_accessory_active
-    name: "POOL310 accessoire actif"
+    name: "POOL310 accessory active"
 
 nibegw:
   ecs:
@@ -236,25 +261,25 @@ nibegw:
       msg1_accessory_sensor: pool310_accessory_active
 ```
 
-Dans Home Assistant, ces sorties apparaissent comme des `binary_sensor`.
-`on` correspond a une demande active, `off` a l'absence de demande.
+In Home Assistant, these outputs appear as `binary_sensor` entities.
+`on` means the request or state is active, and `off` means it is inactive.
 
-## Etat du travail
+## Current Status
 
-Ce travail reste experimental.
-Les points deja utiles:
+This work is experimental.
+Currently useful features:
 
-- reponse dynamique `0x90`;
-- valeurs raw depuis Home Assistant;
-- cache des dernieres valeurs valides;
-- decodage et publication des etats `0x55`;
-- support de plusieurs accessoires en parallele.
+- dynamic `0x90` response;
+- raw values from Home Assistant;
+- cache of the last valid raw values;
+- `0x55` state decoding and Home Assistant publishing;
+- several accessories running in parallel.
 
-Points encore a confirmer:
+Still to confirm:
 
-- commandes exactes d'ouverture/fermeture de vanne de melange ECS/AXC;
-- bit exact de circulateur DEH310 en condition reelle;
-- variations completes de `0xA0` selon les modes;
-- comportement exact de certains mots `W3..W7`.
+- exact ECS/AXC mixing valve open/close commands;
+- exact DEH310 GP15 pump bit under a real heat-demand condition;
+- full `0xA0` variations depending on operating modes;
+- exact meaning of some `W3..W7` words.
 
-Les dumps reels restent la source principale pour continuer a documenter le protocole.
+Real accessory dumps remain the primary source for documenting and validating the protocol.
