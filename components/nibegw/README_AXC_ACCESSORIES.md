@@ -113,15 +113,15 @@ msg1_mixing_close_sensor: ecs_s3_mixing_close
 The decoding is configurable:
 
 ```yaml
-msg1_mixing_open_byte: 1
-msg1_mixing_open_mask: 0xFF
-msg1_mixing_open_value: 0x05
-msg1_mixing_close_byte: 1
-msg1_mixing_close_mask: 0xFF
-msg1_mixing_close_value: 0x06
+msg1_mixing_open_byte: 0
+msg1_mixing_open_mask: 0x04
+msg1_mixing_open_value: 0x04
+msg1_mixing_close_byte: 0
+msg1_mixing_close_mask: 0x02
+msg1_mixing_close_value: 0x02
 ```
 
-These values are working assumptions. They must be confirmed with a real dump where the heat pump explicitly commands the mixing valve to open and close.
+These ECS direction bits are inferred from synchronized S2/S3 captures on 2026-11-12 (see the three-state decoder section below). Physical relay direction has not been independently verified.
 
 ## Observations From Dumps
 
@@ -278,7 +278,7 @@ Currently useful features:
 
 Still to confirm:
 
-- exact ECS/AXC mixing valve open/close commands;
+- independent physical verification of the inferred ECS/AXC direction bits;
 - exact DEH310 GP15 pump bit under a real heat-demand condition;
 - full `0xA0` variations depending on operating modes;
 - exact meaning of some `W3..W7` words.
@@ -317,7 +317,7 @@ decoder. Replace input IDs/defaults with the working installation values; do not
 add this package alongside an already configured S3 entry.
 Validate this variant with `esphome config .ci/ecs-emulator.yaml`.
 
-### Mapping still to establish
+### Historical status before the synchronized long capture
 
 Historical captures contain S2 payloads `02 77`, `02 00`, `02 59` and escaped
 bytes; S3 contains `02 00` and `02 06`. No synchronized physical valve/pump
@@ -389,3 +389,69 @@ short capture. A pump-off observation and independent valve-direction evidence
 are still needed; the defaults have deliberately not been remapped from these
 observations alone. Byte 1 changes independently, so equality with `05`/`06`
 remains unproven as an opening/closing decoder.
+
+## ECS valve decoder: opening, closing, idle (2026-11-12 update)
+
+A synchronized comparison of the real S2 and the already emulated S3 now
+supports the following **inferred** direction mapping. Use explicit options;
+the generic component defaults remain unchanged for other accessory families.
+
+| `0x55` byte 0 (pump bit present) | Valve action | Direction mask |
+| --- | --- | --- |
+| `08` | idle (neither direction energized) | `byte0 & 06 == 00` |
+| `0C` | opening | `byte0 & 06 == 04` |
+| `0A` | closing | `byte0 & 06 == 02` |
+| `0E` | conflicting direction bits | `byte0 & 06 == 06` |
+
+Evidence:
+- On emulated S3, `08 -> 0C -> 08` pulses last about five seconds and recur
+  about every 146 seconds. `0xA0` progresses `00 5F -> 00 63 -> 00 64`
+  (95 -> 99 -> 100) at the first pulses. Its emulated sensor inputs stay fixed.
+- On real S2, the short capture shows `08 -> 0A -> 08` for about two seconds,
+  coinciding with `0xA0` decreasing `00 3C -> 00 3B` (60 -> 59).
+- Byte 1 varies even while the valve direction bits remain idle. Matching
+  byte 1 against `05` or `06` does not describe these observed transitions.
+
+This supports the direction mapping and suggests `0xA0` byte 1 is a calculated
+valve position/index. It is **not measured physical position feedback**.
+Byte-0 bit `08` remains a pump candidate, consistent with NIBE register 44746
+remaining at 1 and the user's confirmation that the circulator stays on. A
+pump-off transition has not been captured, so that assignment is less certain.
+
+`msg1_mixing_state_sensor` references a template text sensor and publishes:
+`opening`, `closing`, `idle`, or `conflict`. If either direction mask is disabled,
+it publishes `unknown`. Truncated frames do not replace the last valid state.
+`idle` means neither direction is requested, not that the valve is fully closed.
+
+The updated observer/emulator examples use byte-0 masks `04` and `02` and
+expose this state. The S3 example explicitly selects pump mask `08` as the
+above working hypothesis. No GPIO relay control is configured, and no live
+firmware or heating setting was changed during the captures.
+
+### Completed 30-minute recording and temperature correlation
+
+Window: 2026-11-12 20:59:55–21:29:55 UTC. 49,286 bus datagrams were saved.
+S2 provided 1,800 valid `0x90` responses; no S2 checksum/missing-reply error was
+detected by the decoder. There were 1,799 S2 `0x55` commands in the window.
+
+- S2 W0/BT2: 630 -> 620 raw; W1/BT3: 679 -> 666 raw.
+- S2 W2/BT50 varied between 717 and 740 raw.
+- HA's separately recorded S2 departure rose from 31.6 to 32.6 °C, return
+  from 26.7 to 28.1 °C, and calculated departure from 30.7 to 31.9 °C.
+  These HA values have their own polling timestamps; they are not an exact
+  conversion of each bus sample.
+- S2 `0x55` remained byte0=08 throughout (byte1: 77 ×1726, 00 ×40, 5C ×33).
+  Its `0xA0` remained `00 3A`. Thus temperature variation alone did **not**
+  produce a captured S2 direction change in this window.
+- S3's `0x90` inputs stayed fixed at W0=740, W1=700, W2=700. Its `0x55`
+  produced 13 approximately five-second `0C` pulses, with `08` between pulses
+  (65 opening-command samples and 1,734 idle samples).
+- S3 `0xA0` increased from 95 to 99 to 100, then stayed at 100 while repeated
+  opening pulses continued. This reinforces that it is not physical feedback.
+
+The long capture supports the opening/idle interpretation, but contains no
+S2 closing transition. The closing inference still rests on the earlier short
+S2 capture and the simultaneous decreasing A0 index. Both valve directions have
+not yet been independently verified against real movement or against deliberately
+varied S3 temperatures. The user confirms the real circulator remains on; this
+capture is not intended to force it off.

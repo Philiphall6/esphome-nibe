@@ -41,6 +41,7 @@ CONF_DATA = "data"
 CONF_CONSTANTS = "constants"
 CONF_ECS = "ecs"
 CONF_OBSERVE_ONLY = "observe_only"
+CONF_MSG1_MIXING_STATE_SENSOR = "msg1_mixing_state_sensor"
 CONF_MSG1_RAW_SENSOR = "msg1_raw_sensor"
 CONF_MSG2_RAW_SENSOR = "msg2_raw_sensor"
 CONF_BT2_RAW = "bt2_raw"
@@ -199,6 +200,7 @@ ECS_SCHEMA = cv.Schema(
             real_enum(Addresses), int
         ),
         cv.Optional(CONF_OBSERVE_ONLY, default=False): cv.boolean,
+        cv.Optional(CONF_MSG1_MIXING_STATE_SENSOR): cv.use_id(text_sensor.TextSensor),
         cv.Optional(CONF_MSG1_RAW_SENSOR): cv.use_id(text_sensor.TextSensor),
         cv.Optional(CONF_MSG2_RAW_SENSOR): cv.use_id(text_sensor.TextSensor),
         cv.Optional(CONF_BT2_RAW): cv.use_id(sensor.Sensor),
@@ -342,7 +344,8 @@ async def to_code(config):
         cg.add(ecs_var.set_gw(var))
         cg.add(ecs_var.set_address(ecs[CONF_ADDRESS]))
         cg.add(ecs_var.set_observe_only(ecs[CONF_OBSERVE_ONLY]))
-        for key, setter in [(CONF_MSG1_RAW_SENSOR, ecs_var.set_msg1_raw_sensor),
+        for key, setter in [(CONF_MSG1_MIXING_STATE_SENSOR, ecs_var.set_msg1_mixing_state_sensor),
+                            (CONF_MSG1_RAW_SENSOR, ecs_var.set_msg1_raw_sensor),
                             (CONF_MSG2_RAW_SENSOR, ecs_var.set_msg2_raw_sensor)]:
             if key in ecs:
                 cg.add(setter(await cg.get_variable(ecs[key])))

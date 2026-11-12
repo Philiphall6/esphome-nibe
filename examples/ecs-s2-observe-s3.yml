@@ -3,6 +3,9 @@
 # S3 is also passive here until its physical absence and sensor inputs are verified.
 text_sensor:
   - platform: template
+    id: ecs_s2_mixing_state
+    name: "ECS S2 commande vanne"
+  - platform: template
     id: ecs_s2_raw55
     name: "ECS S2 commande brute 55"
     entity_category: diagnostic
@@ -26,6 +29,14 @@ nibegw:
       observe_only: true
       msg1_raw_sensor: ecs_s2_raw55
       msg2_raw_sensor: ecs_s2_rawa0
+      # Inferred ECS direction bits; no relay output is driven.
+      msg1_mixing_state_sensor: ecs_s2_mixing_state
+      msg1_mixing_open_byte: 0
+      msg1_mixing_open_mask: 0x04
+      msg1_mixing_open_value: 0x04
+      msg1_mixing_close_byte: 0
+      msg1_mixing_close_mask: 0x02
+      msg1_mixing_close_value: 0x02
     - id: ecs_s3_observer
       address: ECS_S3
       observe_only: true

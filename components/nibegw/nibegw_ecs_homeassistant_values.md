@@ -331,16 +331,15 @@ msg1_accessory_mask: 0x08
 Set a mask to `0x00` to disable that decoded state for one accessory.
 This is useful for ECS/AXC because `0x55 = 02 00` appears regularly on S3 and should not be interpreted as a reversing valve command.
 
-The mixing valve mapping is prepared but still needs confirmation from a real opening/closing dump.
-If the dump proves different values, change these YAML options:
+The following explicit ECS mapping is inferred from the 2026-11-12 synchronized S2/S3 captures. It overrides the legacy generic defaults; it does not drive physical relays:
 
 ```yaml
-msg1_mixing_open_byte: 1
-msg1_mixing_open_mask: 0xFF
-msg1_mixing_open_value: 0x05
-msg1_mixing_close_byte: 1
-msg1_mixing_close_mask: 0xFF
-msg1_mixing_close_value: 0x06
+msg1_mixing_open_byte: 0
+msg1_mixing_open_mask: 0x04
+msg1_mixing_open_value: 0x04
+msg1_mixing_close_byte: 0
+msg1_mixing_close_mask: 0x02
+msg1_mixing_close_value: 0x02
 ```
 
 Example:
@@ -416,12 +415,12 @@ nibegw:
       msg1_valve_request_mask: 0x00
       msg1_mixing_open_sensor: ecs_s3_mixing_open
       msg1_mixing_close_sensor: ecs_s3_mixing_close
-      msg1_mixing_open_byte: 1
-      msg1_mixing_open_mask: 0xFF
-      msg1_mixing_open_value: 0x05
-      msg1_mixing_close_byte: 1
-      msg1_mixing_close_mask: 0xFF
-      msg1_mixing_close_value: 0x06
+      msg1_mixing_open_byte: 0
+      msg1_mixing_open_mask: 0x04
+      msg1_mixing_open_value: 0x04
+      msg1_mixing_close_byte: 0
+      msg1_mixing_close_mask: 0x02
+      msg1_mixing_close_value: 0x02
 
     - address: POOL310
       msg1_active_sensor: pool310_heating_request
@@ -511,3 +510,17 @@ The `0x90` log prints all 8 words:
 ```text
 ECS 0x90 addr=0x6 W0=706 W1=1023 W2=688 W3=1023 W4=1023 W5=1023 W6=1023 W7=1023
 ```
+
+## Three-state ECS valve command
+
+For the latest capture evidence, see [the ECS decoder notes](README_AXC_ACCESSORIES.md#ecs-valve-decoder-opening-closing-idle-2026-11-12-update).
+Use the explicit byte-0 direction masks above, and optionally add:
+
+```yaml
+msg1_mixing_state_sensor: ecs_s3_mixing_state
+```
+
+Declare `ecs_s3_mixing_state` as a template `text_sensor`. States are `opening`,
+`closing`, `idle`, `conflict`, and `unknown` (disabled direction decoding).
+Do not equate `idle` with a fully closed valve. The generic legacy defaults
+shown earlier remain for compatibility; the ECS examples override them.

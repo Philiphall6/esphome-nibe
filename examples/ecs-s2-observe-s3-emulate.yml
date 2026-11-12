@@ -1,6 +1,7 @@
 # Use INSTEAD OF ecs-s2-observe-s3.yml, only when S3 has no physical AXC.
 # HA raw inputs and direction decoding follow the existing fork documentation.
-# The relay mapping is experimental; no GPIO relay control is configured.
+# Direction bits are inferred from synchronized 2026-11-12 captures.
+# No GPIO relay control is configured.
 packages:
   ecs_diagnostics: !include ecs-s2-observe-s3.yml
 
@@ -17,6 +18,11 @@ sensor:
     id: s3_bt50_raw
     entity_id: input_number.nibe_s3_bt50_raw
     internal: true
+
+text_sensor:
+  - platform: template
+    id: ecs_s3_mixing_state
+    name: "ECS S3 commande vanne"
 
 binary_sensor:
   - platform: template
@@ -45,12 +51,13 @@ nibegw:
       bt50_raw_default: 1023
       msg1_valve_request_mask: 0x00
       msg1_pump_request_sensor: ecs_s3_pump_request
-      msg1_pump_request_mask: 0x01
+      msg1_pump_request_mask: 0x08
       msg1_mixing_open_sensor: ecs_s3_mixing_open
-      msg1_mixing_open_byte: 1
-      msg1_mixing_open_mask: 0xFF
-      msg1_mixing_open_value: 0x05
+      msg1_mixing_open_byte: 0
+      msg1_mixing_open_mask: 0x04
+      msg1_mixing_open_value: 0x04
       msg1_mixing_close_sensor: ecs_s3_mixing_close
-      msg1_mixing_close_byte: 1
-      msg1_mixing_close_mask: 0xFF
-      msg1_mixing_close_value: 0x06
+      msg1_mixing_close_byte: 0
+      msg1_mixing_close_mask: 0x02
+      msg1_mixing_close_value: 0x02
+      msg1_mixing_state_sensor: ecs_s3_mixing_state

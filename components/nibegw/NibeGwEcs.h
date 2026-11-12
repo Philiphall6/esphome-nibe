@@ -21,6 +21,7 @@ class NibeGwEcs : public esphome::Component {
  public:
   void set_observe_only(bool value) { this->observe_only_ = value; }
   void set_msg1_raw_sensor(text_sensor::TextSensor *sensor) { this->msg1_raw_sensor_ = sensor; }
+  void set_msg1_mixing_state_sensor(text_sensor::TextSensor *sensor) { this->msg1_mixing_state_sensor_ = sensor; }
   void set_msg2_raw_sensor(text_sensor::TextSensor *sensor) { this->msg2_raw_sensor_ = sensor; }
   void set_gw(NibeGwComponent *gw) { this->gw_ = gw; }
   void set_address(uint16_t address) { this->address_ = address; }
@@ -125,6 +126,20 @@ class NibeGwEcs : public esphome::Component {
       this->publish_optional_(this->msg1_accessory_sensor_, accessory_active);
       this->publish_optional_(this->msg1_mixing_open_sensor_, mixing_open);
       this->publish_optional_(this->msg1_mixing_close_sensor_, mixing_close);
+      if (this->msg1_mixing_state_sensor_ != nullptr &&
+          message.size() > this->msg1_mixing_open_byte_ && message.size() > this->msg1_mixing_close_byte_) {
+        const char *state = "idle";
+        if (this->msg1_mixing_open_mask_ == 0 || this->msg1_mixing_close_mask_ == 0)
+          state = "unknown";
+        else if (mixing_open && mixing_close)
+          state = "conflict";
+        else if (mixing_open)
+          state = "opening";
+        else if (mixing_close)
+          state = "closing";
+        this->msg1_mixing_state_sensor_->publish_state(state);
+      }
+
 
       if (this->msg1_binary_sensor_ == nullptr || this->msg1_binary_mask_ == 0) {
         return;
@@ -191,6 +206,7 @@ class NibeGwEcs : public esphome::Component {
   static constexpr uint16_t RAW_INVALID = 0x03FF;
 
   bool observe_only_{false};
+  text_sensor::TextSensor *msg1_mixing_state_sensor_{nullptr};
   text_sensor::TextSensor *msg1_raw_sensor_{nullptr};
   text_sensor::TextSensor *msg2_raw_sensor_{nullptr};
   NibeGwComponent *gw_{nullptr};

@@ -75,6 +75,22 @@ NibeGwEcs s3; s3.set_gw(&gw); s3.set_address(3); s3.setup();
 assert(gw.acks==1 && gw.requests==1);
 auto reply=gw.reply(); assert(reply.size()==20 && reply[1]==0x90 && reply[2]==16);
 assert(reply[3]==0xc0 && reply[4]==2); // default W0=704
+// Replay the direction bits inferred from S2/S3 captures. Byte 1 is irrelevant.
+text_sensor::TextSensor action;
+s3.set_msg1_mixing_state_sensor(&action);
+s3.set_msg1_mixing_open_byte(0); s3.set_msg1_mixing_open_mask(4); s3.set_msg1_mixing_open_value(4);
+s3.set_msg1_mixing_close_byte(0); s3.set_msg1_mixing_close_mask(2); s3.set_msg1_mixing_close_value(2);
+s3.set_msg1_pump_request_sensor(&pump); s3.set_msg1_pump_request_mask(8);
+auto &rx3=gw.listeners.at({3,0x55});
+for (int byte1 : {0, 4, 5, 6, 0x5c, 0x77}) {
+ rx3({8,(uint8_t)byte1}); assert(action.state=="idle" && pump.state);
+ rx3({12,(uint8_t)byte1}); assert(action.state=="opening" && pump.state);
+ rx3({10,(uint8_t)byte1}); assert(action.state=="closing" && pump.state);
+}
+rx3({14,0}); assert(action.state=="conflict");
+rx3({}); rx3({8}); assert(action.state=="conflict"); // truncated frame is not idle
+rx3({0,0}); assert(action.state=="idle" && !pump.state);
+s3.set_msg1_mixing_open_mask(0); rx3({8,0}); assert(action.state=="unknown");
 // S3 registration leaves the passive S2 listener intact.
 rx({1,0}); assert(pump.state && gw.acks==1);
 }
