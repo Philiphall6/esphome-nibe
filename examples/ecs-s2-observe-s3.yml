@@ -4,7 +4,26 @@
 text_sensor:
   - platform: template
     id: ecs_s2_mixing_state
-    name: "ECS S2 commande vanne"
+    name: "ECS S2 vanne trois voies"
+    icon: mdi:valve
+    filters:
+      - map:
+          - opening -> Ouverture
+          - closing -> Fermeture
+          - idle -> Veille
+          - conflict -> Conflit
+          - unknown -> Inconnu
+  - platform: template
+    id: ecs_s3_mixing_state
+    name: "ECS S3 vanne trois voies"
+    icon: mdi:valve
+    filters:
+      - map:
+          - opening -> Ouverture
+          - closing -> Fermeture
+          - idle -> Veille
+          - conflict -> Conflit
+          - unknown -> Inconnu
   - platform: template
     id: ecs_s2_raw55
     name: "ECS S2 commande brute 55"
@@ -29,7 +48,10 @@ nibegw:
       observe_only: true
       msg1_raw_sensor: ecs_s2_raw55
       msg2_raw_sensor: ecs_s2_rawa0
-      # Inferred ECS direction bits; no relay output is driven.
+      # ECS direction bits supported by real S2 demand-change tests.
+      # Pump bit remains a candidate (no observed pump-off transition).
+      msg1_pump_request_mask: 0x08
+      msg1_valve_request_mask: 0x00
       msg1_mixing_state_sensor: ecs_s2_mixing_state
       msg1_mixing_open_byte: 0
       msg1_mixing_open_mask: 0x04
@@ -42,3 +64,12 @@ nibegw:
       observe_only: true
       msg1_raw_sensor: ecs_s3_raw55
       msg2_raw_sensor: ecs_s3_rawa0
+      msg1_mixing_state_sensor: ecs_s3_mixing_state
+      msg1_mixing_open_byte: 0
+      msg1_mixing_open_mask: 0x04
+      msg1_mixing_open_value: 0x04
+      msg1_mixing_close_byte: 0
+      msg1_mixing_close_mask: 0x02
+      msg1_mixing_close_value: 0x02
+      msg1_pump_request_mask: 0x08
+      msg1_valve_request_mask: 0x00

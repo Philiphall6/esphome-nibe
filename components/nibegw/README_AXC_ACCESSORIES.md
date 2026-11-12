@@ -503,3 +503,30 @@ direction pulses with pauses, and a valve already at its end stop may not move.
 These observations confirm the **command interpretation**, not valve position,
 travel completion or measured relay voltage. The existing explicit ECS masks
 already match the evidence; no decoder or generic-default change is needed.
+
+### Readable ESP logs for ECS valve commands
+
+With the explicit ECS direction masks configured, INFO logs now identify the
+circuit and the requested valve action, even without an optional text sensor:
+
+```text
+ECS S2 addr=0x2 valve_command=closing pump_request=ON data=0a 77
+ECS S2 addr=0x2 valve_command=idle pump_request=ON data=08 77
+ECS S3 addr=0x3 valve_command=opening pump_request=ON data=0c 77
+```
+
+An INFO line is emitted on the first valid command and whenever the decoded
+direction or configured pump request changes. Changes to unrelated byte-1
+values do not repeat the INFO line. DEBUG retains every decoded command with
+its raw bytes and adds `valve_command`. Both direction bits produce `conflict`;
+disabled masks or unavailable configured direction bytes produce `unknown`.
+Frames shorter than two bytes retain the existing warning and do not replace
+the last published state.
+
+The logs use the configured masks, just like the optional sensors. Use the
+S2/S3 example settings (open: byte 0/mask 04/value 04; close: byte 0/mask
+02/value 02); old generic defaults do not decode ECS directions correctly.
+The pump request is also decoded with its configured mask and is not measured
+pump feedback. This addition requires building and installing the updated
+firmware. To log real S2, configure its existing `ecs:` observer with
+`observe_only: true`; do not acknowledge or emulate the real S2 board.

@@ -19,11 +19,6 @@ sensor:
     entity_id: input_number.nibe_s3_bt50_raw
     internal: true
 
-text_sensor:
-  - platform: template
-    id: ecs_s3_mixing_state
-    name: "ECS S3 commande vanne"
-
 binary_sensor:
   - platform: template
     id: ecs_s3_pump_request

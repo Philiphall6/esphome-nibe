@@ -16,7 +16,7 @@ class EcsRuntimeTest(unittest.TestCase):
                 target.write_text(data)
             put('NibeGwEcs.h', (ROOT / 'components/nibegw/NibeGwEcs.h').read_text())
             put('esphome/core/component.h', '#pragma once\nnamespace esphome { class Component { public: virtual void setup() {} virtual void dump_config() {} }; }')
-            put('esphome/core/log.h', '#pragma once\n#define ESP_LOGE(...)\n#define ESP_LOGW(...)\n#define ESP_LOGD(...)\n#define ESP_LOGCONFIG(...)\n#define LOG_SENSOR(...)\n#define LOG_BINARY_SENSOR(...)\n#define ONOFF(x) ((x)?"ON":"OFF")\n')
+            put('esphome/core/log.h', '#pragma once\n#include <cstdio>\n#include <string>\n#include <vector>\ninline std::vector<std::string> info_logs;\n#define ESP_LOGI(tag, fmt, ...) do { char line[256]; std::snprintf(line, sizeof(line), fmt, __VA_ARGS__); info_logs.emplace_back(line); } while (0)\n#define ESP_LOGE(...)\n#define ESP_LOGW(...)\n#define ESP_LOGD(...)\n#define ESP_LOGCONFIG(...)\n#define LOG_SENSOR(...)\n#define LOG_BINARY_SENSOR(...)\n#define ONOFF(x) ((x)?"ON":"OFF")\n')
             put('esphome/components/sensor/sensor.h', '''#pragma once
 #include <functional>
 namespace esphome::sensor { class Sensor { public: float state=0; bool has_state() { return false; } void add_on_state_callback(std::function<void(float)>) {} }; }
@@ -91,6 +91,19 @@ rx3({14,0}); assert(action.state=="conflict");
 rx3({}); rx3({8}); assert(action.state=="conflict"); // truncated frame is not idle
 rx3({0,0}); assert(action.state=="idle" && !pump.state);
 s3.set_msg1_mixing_open_mask(0); rx3({8,0}); assert(action.state=="unknown");
+assert(info_logs.back().find("valve_command=unknown")!=std::string::npos);
+// Logging must not depend on an HA text sensor and must not flood on repeated frames.
+s3.set_msg1_mixing_state_sensor(nullptr); s3.set_msg1_mixing_open_mask(4);
+rx3({12,0x77});
+assert(info_logs.back().find("ECS S3 addr=0x3 valve_command=opening pump_request=ON")!=std::string::npos);
+auto log_count=info_logs.size();
+rx3({12,0x5c}); assert(info_logs.size()==log_count);
+rx3({10,0x77}); assert(info_logs.back().find("valve_command=closing")!=std::string::npos);
+rx3({8,0}); assert(info_logs.back().find("valve_command=idle")!=std::string::npos);
+log_count=info_logs.size(); rx3({8}); assert(info_logs.size()==log_count);
+rx3({14,0}); assert(info_logs.back().find("valve_command=conflict")!=std::string::npos);
+s3.set_msg1_mixing_open_byte(3); rx3({8,0});
+assert(info_logs.back().find("valve_command=unknown")!=std::string::npos);
 // S3 registration leaves the passive S2 listener intact.
 rx({1,0}); assert(pump.state && gw.acks==1);
 }

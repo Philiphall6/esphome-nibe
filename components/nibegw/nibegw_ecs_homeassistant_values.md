@@ -533,3 +533,27 @@ Both returned to `08` between pulses. See the
 [demand-change evidence](README_AXC_ACCESSORIES.md#real-s2-opposite-demand-changes-confirm-the-direction-interpretation)
 and its linked sanitized dataset. These are requested directions, not a
 measurement of the valve's physical position. The pump remained on throughout.
+
+### Home Assistant: Ouverture / Fermeture / Veille
+
+Both example packages expose a text entity per circuit, named
+`ECS S2 vanne trois voies` and `ECS S3 vanne trois voies`, through the ESPHome
+native API. The passive package observes both circuits; the emulation package
+extends only S3. Keep the existing `api:` configuration in your device YAML.
+
+The component retains its English protocol states. The example text-sensor
+filters translate them for Home Assistant:
+
+| Component / ESP log | HA text state |
+| --- | --- |
+| `opening` | Ouverture |
+| `closing` | Fermeture |
+| `idle` | Veille |
+| `conflict` | Conflit |
+| `unknown` | Inconnu |
+
+Veille means neither direction is requested; it is not a closed position.
+The state is published when valid commands arrive, not initialized to a
+fictional valve position. Entity IDs are assigned by Home Assistant from the
+device and entity names. The states are usable in dashboard cards and
+automations; there is no position percentage or physical relay actuation.

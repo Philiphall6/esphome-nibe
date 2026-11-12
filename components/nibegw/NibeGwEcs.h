@@ -114,11 +114,26 @@ class NibeGwEcs : public esphome::Component {
                                               this->msg1_mixing_open_value_);
       bool mixing_close = this->matches_value_(message, this->msg1_mixing_close_byte_, this->msg1_mixing_close_mask_,
                                                this->msg1_mixing_close_value_);
+      const bool direction_bytes_present = message.size() > this->msg1_mixing_open_byte_ &&
+                                           message.size() > this->msg1_mixing_close_byte_;
+      const char *mixing_state = "unknown";
+      if (direction_bytes_present && this->msg1_mixing_open_mask_ != 0 && this->msg1_mixing_close_mask_ != 0) {
+        mixing_state = mixing_open && mixing_close ? "conflict" :
+                       mixing_open ? "opening" : mixing_close ? "closing" : "idle";
+      }
+      // Log transitions even when no optional text sensor is configured.
+      if (this->last_mixing_log_state_ != mixing_state || this->last_pump_log_state_ != pump_request) {
+        const char *circuit = this->address_ == 0x02 ? "S2" : this->address_ == 0x03 ? "S3" : "accessory";
+        ESP_LOGI(TAG, "ECS %s addr=0x%x valve_command=%s pump_request=%s data=%02x %02x",
+                 circuit, this->address_, mixing_state, ONOFF(pump_request), byte0, byte1);
+        this->last_mixing_log_state_ = mixing_state;
+        this->last_pump_log_state_ = pump_request;
+      }
       ESP_LOGD(TAG,
                "ECS 0x55 addr=0x%x data=%02x %02x pump_request=%s valve_request=%s active=%s accessory_active=%s "
-               "mixing_open=%s mixing_close=%s",
+               "mixing_open=%s mixing_close=%s valve_command=%s",
                this->address_, byte0, byte1, ONOFF(pump_request), ONOFF(valve_request), ONOFF(active_request),
-               ONOFF(accessory_active), ONOFF(mixing_open), ONOFF(mixing_close));
+               ONOFF(accessory_active), ONOFF(mixing_open), ONOFF(mixing_close), mixing_state);
 
       this->publish_optional_(this->msg1_pump_request_sensor_, pump_request);
       this->publish_optional_(this->msg1_valve_request_sensor_, valve_request);
@@ -126,19 +141,8 @@ class NibeGwEcs : public esphome::Component {
       this->publish_optional_(this->msg1_accessory_sensor_, accessory_active);
       this->publish_optional_(this->msg1_mixing_open_sensor_, mixing_open);
       this->publish_optional_(this->msg1_mixing_close_sensor_, mixing_close);
-      if (this->msg1_mixing_state_sensor_ != nullptr &&
-          message.size() > this->msg1_mixing_open_byte_ && message.size() > this->msg1_mixing_close_byte_) {
-        const char *state = "idle";
-        if (this->msg1_mixing_open_mask_ == 0 || this->msg1_mixing_close_mask_ == 0)
-          state = "unknown";
-        else if (mixing_open && mixing_close)
-          state = "conflict";
-        else if (mixing_open)
-          state = "opening";
-        else if (mixing_close)
-          state = "closing";
-        this->msg1_mixing_state_sensor_->publish_state(state);
-      }
+      if (this->msg1_mixing_state_sensor_ != nullptr && direction_bytes_present)
+        this->msg1_mixing_state_sensor_->publish_state(mixing_state);
 
 
       if (this->msg1_binary_sensor_ == nullptr || this->msg1_binary_mask_ == 0) {
@@ -206,6 +210,8 @@ class NibeGwEcs : public esphome::Component {
   static constexpr uint16_t RAW_INVALID = 0x03FF;
 
   bool observe_only_{false};
+  std::string last_mixing_log_state_{};
+  bool last_pump_log_state_{false};
   text_sensor::TextSensor *msg1_mixing_state_sensor_{nullptr};
   text_sensor::TextSensor *msg1_raw_sensor_{nullptr};
   text_sensor::TextSensor *msg2_raw_sensor_{nullptr};
