@@ -357,3 +357,35 @@ The `0xA0` payload is nonzero in this capture and must not be discarded.
 The software observer and diagnostic exposure are implemented and compiled;
 physical ECS relay decoding remains unvalidated. Do not describe this as a
 completed physical AXC replacement yet.
+
+### Synchronized real S2 capture, 20:53:35–20:56:34 UTC
+
+On 2026-11-12, a three-minute passive UDP recording included **180 real S2
+`0x90` replies**, 180 `0x55` commands and 180 `0xA0` commands. Master and slave
+checksums were validated before decoding; no invalid/missing S2 replies were
+found. The slave `C0 90 10 ... checksum` frame follows the master request in the
+same UDP datagram. Reading only the master payload would miss the temperatures.
+Payload `5C 5C` escapes were removed before interpreting little-endian words.
+
+| Raw word | First | Last | Range |
+| --- | ---: | ---: | ---: |
+| W0 / BT2 | 633 | 630 | 630–633 |
+| W1 / BT3 | 682 | 680 | 680–682 |
+| W2 / BT50 | 739 | 728 | 718–740 |
+
+These are raw sensor values, not degrees Celsius. The BT labels follow the
+fork's established mapping; this capture alone does not recalibrate the sensors.
+
+`0x55` payload counts: `08 77` ×170, `08 5C` ×4, `08 00` ×4, `0A 77` ×2.
+At 20:54:45.663, byte 0 changed from `08` to `0A`, then returned to `08`
+at 20:54:47.657. W0 stayed at 631 during that approximately two-second interval.
+It eventually reached 630 by the end of the recording. This is insufficient to
+attribute the subsequent temperature change to a specific valve direction.
+
+Working hypothesis for ECS only: persistent byte-0 bit `0x08` may be the
+circulator request, while the transient `0x02` may be a valve command. **Neither
+assignment is confirmed.** Other functions can also stay active throughout this
+short capture. A pump-off observation and independent valve-direction evidence
+are still needed; the defaults have deliberately not been remapped from these
+observations alone. Byte 1 changes independently, so equality with `05`/`06`
+remains unproven as an opening/closing decoder.
