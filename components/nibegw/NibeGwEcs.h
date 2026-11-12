@@ -3,11 +3,13 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <string>
 
 #include "esphome/core/component.h"
 #include "esphome/core/log.h"
 #include "esphome/components/binary_sensor/binary_sensor.h"
 #include "esphome/components/sensor/sensor.h"
+#include "esphome/components/text_sensor/text_sensor.h"
 
 #include "NibeGw.h"
 #include "NibeGwComponent.h"
@@ -17,6 +19,9 @@ namespace nibegw {
 
 class NibeGwEcs : public esphome::Component {
  public:
+  void set_observe_only(bool value) { this->observe_only_ = value; }
+  void set_msg1_raw_sensor(text_sensor::TextSensor *sensor) { this->msg1_raw_sensor_ = sensor; }
+  void set_msg2_raw_sensor(text_sensor::TextSensor *sensor) { this->msg2_raw_sensor_ = sensor; }
   void set_gw(NibeGwComponent *gw) { this->gw_ = gw; }
   void set_address(uint16_t address) { this->address_ = address; }
   void set_bt2_raw_sensor(sensor::Sensor *sensor) { this->bt2_raw_sensor_ = sensor; }
@@ -80,18 +85,25 @@ class NibeGwEcs : public esphome::Component {
     this->attach_sensor_cache_(this->w7_raw_sensor_, this->w7_raw_cached_, "W7");
     this->refresh_cache_from_sensors_();
 
-    this->gw_->set_request(this->address_, ECS_DATA_REQ, [this] {
-      this->refresh_cache_from_sensors_();
-      auto response = this->build_response_();
-      ESP_LOGD(TAG, "ECS 0x90 addr=0x%x W0=%u W1=%u W2=%u W3=%u W4=%u W5=%u W6=%u W7=%u", this->address_,
-               this->bt2_raw_cached_, this->bt3_raw_cached_, this->bt50_raw_cached_, this->w3_raw_cached_,
-               this->w4_raw_cached_, this->w5_raw_cached_, this->w6_raw_cached_, this->w7_raw_cached_);
-      return response;
-    });
-    this->gw_->add_acknowledge(this->address_);
+    if (!this->observe_only_) {
+      this->gw_->set_request(this->address_, ECS_DATA_REQ, [this] {
+        this->refresh_cache_from_sensors_();
+        auto response = this->build_response_();
+        ESP_LOGD(TAG, "ECS 0x90 addr=0x%x W0=%u W1=%u W2=%u W3=%u W4=%u W5=%u W6=%u W7=%u", this->address_,
+                 this->bt2_raw_cached_, this->bt3_raw_cached_, this->bt50_raw_cached_, this->w3_raw_cached_,
+                 this->w4_raw_cached_, this->w5_raw_cached_, this->w6_raw_cached_, this->w7_raw_cached_);
+        return response;
+      });
+      this->gw_->add_acknowledge(this->address_);
+    }
 
     this->gw_->add_listener(this->address_, ECS_DATA_MSG_1, [this](const request_data_type &message) {
-      uint8_t byte0 = message.size() > 0 ? message[0] : 0;
+      this->publish_raw_(this->msg1_raw_sensor_, message);
+      if (message.size() < 2) {
+        ESP_LOGW(TAG, "ECS 0x55 addr=0x%x invalid length=%zu", this->address_, message.size());
+        return;
+      }
+      uint8_t byte0 = message[0];
       uint8_t byte1 = message.size() > 1 ? message[1] : 0;
       bool pump_request = this->matches_mask_(byte0, this->msg1_pump_request_mask_);
       bool valve_request = this->matches_mask_(byte0, this->msg1_valve_request_mask_);
@@ -128,6 +140,7 @@ class NibeGwEcs : public esphome::Component {
     });
 
     this->gw_->add_listener(this->address_, ECS_DATA_MSG_2, [this](const request_data_type &message) {
+      this->publish_raw_(this->msg2_raw_sensor_, message);
       uint8_t byte0 = message.size() > 0 ? message[0] : 0;
       uint8_t byte1 = message.size() > 1 ? message[1] : 0;
       ESP_LOGD(TAG, "ECS 0xA0 addr=0x%x data=%02x %02x", this->address_, byte0, byte1);
@@ -137,6 +150,7 @@ class NibeGwEcs : public esphome::Component {
   void dump_config() override {
     ESP_LOGCONFIG(TAG, "NibeGw ECS");
     ESP_LOGCONFIG(TAG, "  Address: 0x%x", this->address_);
+    ESP_LOGCONFIG(TAG, "  Observe only: %s", ONOFF(this->observe_only_));
     LOG_SENSOR("  ", "BT2 raw", this->bt2_raw_sensor_);
     LOG_SENSOR("  ", "BT3 raw", this->bt3_raw_sensor_);
     LOG_SENSOR("  ", "BT50 raw", this->bt50_raw_sensor_);
@@ -176,6 +190,9 @@ class NibeGwEcs : public esphome::Component {
   static constexpr const char *TAG = "nibegw.ecs";
   static constexpr uint16_t RAW_INVALID = 0x03FF;
 
+  bool observe_only_{false};
+  text_sensor::TextSensor *msg1_raw_sensor_{nullptr};
+  text_sensor::TextSensor *msg2_raw_sensor_{nullptr};
   NibeGwComponent *gw_{nullptr};
   uint16_t address_{ECS_S3};
   sensor::Sensor *bt2_raw_sensor_{nullptr};
@@ -221,6 +238,18 @@ class NibeGwEcs : public esphome::Component {
   uint8_t msg1_mixing_close_byte_{1};
   uint8_t msg1_mixing_close_mask_{0xff};
   uint8_t msg1_mixing_close_value_{0x06};
+
+  void publish_raw_(text_sensor::TextSensor *sensor, const request_data_type &message) {
+    if (sensor == nullptr) return;
+    static constexpr char HEX[] = "0123456789ABCDEF";
+    std::string value;
+    for (auto byte : message) {
+      if (!value.empty()) value += ' ';
+      value += HEX[byte >> 4];
+      value += HEX[byte & 0x0F];
+    }
+    sensor->publish_state(value);
+  }
 
   void publish_optional_(binary_sensor::BinarySensor *sensor, bool state) {
     if (sensor != nullptr) {

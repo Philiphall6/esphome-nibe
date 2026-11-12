@@ -49,7 +49,8 @@ nibegw:
       bt50_raw: s3_bt50_raw
 ```
 
-Each `ecs:` entry creates a dynamic reply for token `0x90`.
+Each active `ecs:` entry creates a dynamic reply for token `0x90`. An entry
+with `observe_only: true` only observes the real accessory.
 
 ### Dynamic `0x90` Response
 
@@ -283,3 +284,76 @@ Still to confirm:
 - exact meaning of some `W3..W7` words.
 
 Real accessory dumps remain the primary source for documenting and validating the protocol.
+
+## Real S2 card: passive diagnostics before S3 emulation
+
+Use `observe_only: true` on an `ecs:` entry when a real AXC/ECS card already
+occupies its address. This registers listeners for controller messages `0x55`
+and `0xA0` but **does not ACK or provide a `0x90` reply**. The validator rejects
+an observer address also present in `acknowledge`, `constants`, or UDP command
+ports. Duplicate `ecs:` addresses are rejected as well. Other gateway functions
+(such as MODBUS40) continue normally.
+
+`observe_only` defaults to `false` to preserve existing emulators. Never enable
+emulation at an address occupied by a real card.
+
+Optional `msg1_raw_sensor` and `msg2_raw_sensor` reference template text sensors.
+They publish the complete decoded payload as hexadecimal bytes, without guessing
+its meaning. These are commands from the controller, **not valve position or
+proof that the physical circulator is running**. Short `0x55` payloads are exposed
+as raw diagnostics but do not overwrite binary command states.
+
+See [`examples/ecs-s2-observe-s3.yml`](../../examples/ecs-s2-observe-s3.yml) for a
+package to merge into an existing gateway. Both entries start passive. If S3 is
+already emulated, merge the two raw sensor references into that existing S3 entry
+and retain its working temperature inputs, defaults and `observe_only: false`.
+Do not create a second S3 entry. No relay outputs are configured by this package.
+
+For a new setup matching a real S2 and an emulated S3, use
+[`ecs-s2-observe-s3-emulate.yml`](../../examples/ecs-s2-observe-s3-emulate.yml)
+instead. It extends the passive package, retains the documented S3 raw sensor
+inputs and accessory identity, and exposes its existing experimental pump/open/close
+decoder. Replace input IDs/defaults with the working installation values; do not
+add this package alongside an already configured S3 entry.
+Validate this variant with `esphome config .ci/ecs-emulator.yaml`.
+
+### Mapping still to establish
+
+Historical captures contain S2 payloads `02 77`, `02 00`, `02 59` and escaped
+bytes; S3 contains `02 00` and `02 06`. No synchronized physical valve/pump
+observation accompanies those captures. In particular, **byte 0 mask `0x01` and
+byte 1 values `0x05`/`0x06` remain hypotheses for ECS**, not confirmed S2 relay
+assignments. Do not connect the existing decoded binary sensors to relay outputs
+on that basis. Generic masks for other accessories are not ECS evidence.
+
+Observe S2 through a normal heating cycle. Record the timestamp, both raw
+payloads, BT2 S2, calculated supply S2, and independently observed opening,
+closing, stationary valve and circulator on/off states. Compare transitions and
+repeats across several cycles. Only then configure `msg1_*_mask` and
+`msg1_mixing_*` for the established mapping and replay it on an unoccupied S3.
+An `ON` command is not an opening percentage; estimating position would additionally
+require verified travel time and a known reference position.
+
+Validation: `python3 -m unittest discover -s tests -v` (requires `g++`);
+`esphome config .ci/ecs-observer.yaml` and `esphome compile .ci/ecs-observer.yaml`.
+
+### Live comparison (2026-11-12)
+
+Read-only capture from the already running gateway, without changing the NIBE
+settings or flashing the ESP, produced the following controller payloads:
+
+| Circuit | `0x55` | `0xA0` |
+| --- | --- | --- |
+| Real S2 AXC | `08 77` | `00 3E` |
+| Emulated S3 | `08 00`, `08 04`, `08 5D` | `00 43` |
+
+The ESP log also contained S3 `08 77`. Existing S3 temperature replies were
+working (W0=740, W1=700, W2=700). These observations preserve the established
+sensor work, but do not establish valve direction or pump relay mapping.
+In particular the existing `pump_request=OFF` log is the result of applying
+mask `0x01`; it is not independent confirmation that the circulator is off.
+The `0xA0` payload is nonzero in this capture and must not be discarded.
+
+The software observer and diagnostic exposure are implemented and compiled;
+physical ECS relay decoding remains unvalidated. Do not describe this as a
+completed physical AXC replacement yet.

@@ -1,0 +1,33 @@
+# Merge this package into a working nibegw configuration.
+# S2 is a REAL AXC: never acknowledge or emulate its address.
+# S3 is also passive here until its physical absence and sensor inputs are verified.
+text_sensor:
+  - platform: template
+    id: ecs_s2_raw55
+    name: "ECS S2 commande brute 55"
+    entity_category: diagnostic
+  - platform: template
+    id: ecs_s2_rawa0
+    name: "ECS S2 commande brute A0"
+    entity_category: diagnostic
+  - platform: template
+    id: ecs_s3_raw55
+    name: "ECS S3 commande brute 55"
+    entity_category: diagnostic
+  - platform: template
+    id: ecs_s3_rawa0
+    name: "ECS S3 commande brute A0"
+    entity_category: diagnostic
+
+nibegw:
+  ecs:
+    - id: ecs_s2_observer
+      address: ECS_S2
+      observe_only: true
+      msg1_raw_sensor: ecs_s2_raw55
+      msg2_raw_sensor: ecs_s2_rawa0
+    - id: ecs_s3_observer
+      address: ECS_S3
+      observe_only: true
+      msg1_raw_sensor: ecs_s3_raw55
+      msg2_raw_sensor: ecs_s3_rawa0

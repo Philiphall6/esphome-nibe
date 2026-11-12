@@ -1,0 +1,56 @@
+# Use INSTEAD OF ecs-s2-observe-s3.yml, only when S3 has no physical AXC.
+# HA raw inputs and direction decoding follow the existing fork documentation.
+# The relay mapping is experimental; no GPIO relay control is configured.
+packages:
+  ecs_diagnostics: !include ecs-s2-observe-s3.yml
+
+sensor:
+  - platform: homeassistant
+    id: s3_bt2_raw
+    entity_id: input_number.nibe_s3_bt2_raw
+    internal: true
+  - platform: homeassistant
+    id: s3_bt3_raw
+    entity_id: input_number.nibe_s3_bt3_raw
+    internal: true
+  - platform: homeassistant
+    id: s3_bt50_raw
+    entity_id: input_number.nibe_s3_bt50_raw
+    internal: true
+
+binary_sensor:
+  - platform: template
+    id: ecs_s3_pump_request
+    name: "ECS S3 demande circulateur"
+  - platform: template
+    id: ecs_s3_mixing_open
+    name: "ECS S3 vanne ouverture"
+  - platform: template
+    id: ecs_s3_mixing_close
+    name: "ECS S3 vanne fermeture"
+
+nibegw:
+  constants:
+    - address: ECS_S3
+      token: ACCESSORY
+      data: [0x01, 0x0F, 0xA2]
+  ecs:
+    - id: !extend ecs_s3_observer
+      observe_only: false
+      bt2_raw: s3_bt2_raw
+      bt3_raw: s3_bt3_raw
+      bt50_raw: s3_bt50_raw
+      bt2_raw_default: 704
+      bt3_raw_default: 724
+      bt50_raw_default: 1023
+      msg1_valve_request_mask: 0x00
+      msg1_pump_request_sensor: ecs_s3_pump_request
+      msg1_pump_request_mask: 0x01
+      msg1_mixing_open_sensor: ecs_s3_mixing_open
+      msg1_mixing_open_byte: 1
+      msg1_mixing_open_mask: 0xFF
+      msg1_mixing_open_value: 0x05
+      msg1_mixing_close_sensor: ecs_s3_mixing_close
+      msg1_mixing_close_byte: 1
+      msg1_mixing_close_mask: 0xFF
+      msg1_mixing_close_value: 0x06

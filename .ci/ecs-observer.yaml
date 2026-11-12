@@ -1,0 +1,25 @@
+esphome:
+  name: nibegw-ecs-test
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+logger:
+  baud_rate: 0
+wifi:
+  ssid: test-network
+  password: test-password
+  power_save_mode: none
+api:
+external_components:
+  - source: ../components
+uart:
+  rx_pin: GPIO16
+  tx_pin: GPIO17
+  baud_rate: 9600
+nibegw:
+  udp:
+    source: [192.0.2.1]
+  acknowledge: [MODBUS40]
+packages:
+  ecs: !include ../examples/ecs-s2-observe-s3.yml

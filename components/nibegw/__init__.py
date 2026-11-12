@@ -10,10 +10,10 @@ from esphome.const import (
 from esphome import pins
 from esphome.components.network import IPAddress
 from enum import IntEnum, Enum
-from esphome.components import uart, socket, sensor, binary_sensor
+from esphome.components import uart, socket, sensor, binary_sensor, text_sensor
 from esphome.types import ConfigType
 
-AUTO_LOAD = ["sensor", "binary_sensor", "climate"]
+AUTO_LOAD = ["sensor", "binary_sensor", "text_sensor", "climate"]
 DEPENDENCIES = ["logger"]
 
 nibegw_ns = cg.esphome_ns.namespace("nibegw")
@@ -40,6 +40,9 @@ CONF_COMMAND = "command"
 CONF_DATA = "data"
 CONF_CONSTANTS = "constants"
 CONF_ECS = "ecs"
+CONF_OBSERVE_ONLY = "observe_only"
+CONF_MSG1_RAW_SENSOR = "msg1_raw_sensor"
+CONF_MSG2_RAW_SENSOR = "msg2_raw_sensor"
 CONF_BT2_RAW = "bt2_raw"
 CONF_BT3_RAW = "bt3_raw"
 CONF_BT50_RAW = "bt50_raw"
@@ -195,6 +198,9 @@ ECS_SCHEMA = cv.Schema(
         cv.Optional(CONF_ADDRESS, default=Addresses.ECS_S3.value): cv.Any(
             real_enum(Addresses), int
         ),
+        cv.Optional(CONF_OBSERVE_ONLY, default=False): cv.boolean,
+        cv.Optional(CONF_MSG1_RAW_SENSOR): cv.use_id(text_sensor.TextSensor),
+        cv.Optional(CONF_MSG2_RAW_SENSOR): cv.use_id(text_sensor.TextSensor),
         cv.Optional(CONF_BT2_RAW): cv.use_id(sensor.Sensor),
         cv.Optional(CONF_BT3_RAW): cv.use_id(sensor.Sensor),
         cv.Optional(CONF_BT50_RAW): cv.use_id(sensor.Sensor),
@@ -233,6 +239,24 @@ ECS_SCHEMA = cv.Schema(
     }
 )
 
+def _validate_ecs_addresses(config):
+    seen = set()
+    for ecs in config[CONF_ECS]:
+        address = ecs[CONF_ADDRESS]
+        if address in seen:
+            raise cv.Invalid("Only one ecs entry is allowed per address")
+        seen.add(address)
+        if not ecs[CONF_OBSERVE_ONLY]:
+            continue
+        if address in config[CONF_ACKNOWLEDGE]:
+            raise cv.Invalid("observe_only address must not appear in acknowledge")
+        if any(item[CONF_ADDRESS] == address for item in config[CONF_CONSTANTS]):
+            raise cv.Invalid("observe_only address must not have constant replies")
+        if any(item[CONF_ADDRESS] == address for item in config[CONF_UDP][CONF_PORTS]):
+            raise cv.Invalid("observe_only address must not have UDP command ports")
+    return config
+
+
 CONFIG_SCHEMA = cv.All(
     cv.Schema(
         {
@@ -249,6 +273,7 @@ CONFIG_SCHEMA = cv.All(
     .extend(cv.COMPONENT_SCHEMA)
     .extend(uart.UART_DEVICE_SCHEMA),
     _upgrade_ports,
+    _validate_ecs_addresses,
     _consume_nibegw_sockets,
 )
 
@@ -316,6 +341,11 @@ async def to_code(config):
         await cg.register_component(ecs_var, ecs)
         cg.add(ecs_var.set_gw(var))
         cg.add(ecs_var.set_address(ecs[CONF_ADDRESS]))
+        cg.add(ecs_var.set_observe_only(ecs[CONF_OBSERVE_ONLY]))
+        for key, setter in [(CONF_MSG1_RAW_SENSOR, ecs_var.set_msg1_raw_sensor),
+                            (CONF_MSG2_RAW_SENSOR, ecs_var.set_msg2_raw_sensor)]:
+            if key in ecs:
+                cg.add(setter(await cg.get_variable(ecs[key])))
         cg.add(ecs_var.set_bt2_raw_default(ecs[CONF_BT2_RAW_DEFAULT]))
         cg.add(ecs_var.set_bt3_raw_default(ecs[CONF_BT3_RAW_DEFAULT]))
         cg.add(ecs_var.set_bt50_raw_default(ecs[CONF_BT50_RAW_DEFAULT]))
