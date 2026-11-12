@@ -331,7 +331,7 @@ msg1_accessory_mask: 0x08
 Set a mask to `0x00` to disable that decoded state for one accessory.
 This is useful for ECS/AXC because `0x55 = 02 00` appears regularly on S3 and should not be interpreted as a reversing valve command.
 
-The following explicit ECS mapping is inferred from the 2026-11-12 synchronized S2/S3 captures. It overrides the legacy generic defaults; it does not drive physical relays:
+The following explicit ECS mapping is supported by the 2026-11-12 synchronized S2/S3 captures and opposite demand changes on the real S2. It overrides the legacy generic defaults; it does not drive physical relays:
 
 ```yaml
 msg1_mixing_open_byte: 0
@@ -524,3 +524,12 @@ Declare `ecs_s3_mixing_state` as a template `text_sensor`. States are `opening`,
 `closing`, `idle`, `conflict`, and `unknown` (disabled direction decoding).
 Do not equate `idle` with a fully closed valve. The generic legacy defaults
 shown earlier remain for compatibility; the ECS examples override them.
+
+
+The real S2 demand-change tests also support this mapping: lowering demand
+produced four `0A` closing pulses (9, 8, 7 and 6 seconds), while raising demand
+produced two `0C` opening pulses of 8 seconds in the initial opening snapshot.
+Both returned to `08` between pulses. See the
+[demand-change evidence](README_AXC_ACCESSORIES.md#real-s2-opposite-demand-changes-confirm-the-direction-interpretation)
+and its linked sanitized dataset. These are requested directions, not a
+measurement of the valve's physical position. The pump remained on throughout.

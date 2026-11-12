@@ -121,7 +121,7 @@ msg1_mixing_close_mask: 0x02
 msg1_mixing_close_value: 0x02
 ```
 
-These ECS direction bits are inferred from synchronized S2/S3 captures on 2026-11-12 (see the three-state decoder section below). Physical relay direction has not been independently verified.
+These ECS direction bits are supported by synchronized S2/S3 captures and opposite demand changes on real S2 on 2026-11-12 (see the three-state decoder section below). They describe requested direction, not measured physical position or independently probed relay outputs.
 
 ## Observations From Dumps
 
@@ -392,8 +392,8 @@ remains unproven as an opening/closing decoder.
 
 ## ECS valve decoder: opening, closing, idle (2026-11-12 update)
 
-A synchronized comparison of the real S2 and the already emulated S3 now
-supports the following **inferred** direction mapping. Use explicit options;
+Synchronized S2/S3 observations, followed by opposite demand changes on the
+real S2, support the following **command-direction** mapping. Use explicit options;
 the generic component defaults remain unchanged for other accessory families.
 
 | `0x55` byte 0 (pump bit present) | Valve action | Direction mask |
@@ -426,7 +426,8 @@ it publishes `unknown`. Truncated frames do not replace the last valid state.
 The updated observer/emulator examples use byte-0 masks `04` and `02` and
 expose this state. The S3 example explicitly selects pump mask `08` as the
 above working hypothesis. No GPIO relay control is configured, and no live
-firmware or heating setting was changed during the captures.
+firmware or heating setting was changed during the initial captures. In the
+later demand-change tests below, the user changed the S2 offset through HA.
 
 ### Completed 30-minute recording and temperature correlation
 
@@ -450,8 +451,55 @@ detected by the decoder. There were 1,799 S2 `0x55` commands in the window.
   opening pulses continued. This reinforces that it is not physical feedback.
 
 The long capture supports the opening/idle interpretation, but contains no
-S2 closing transition. The closing inference still rests on the earlier short
-S2 capture and the simultaneous decreasing A0 index. Both valve directions have
-not yet been independently verified against real movement or against deliberately
+S2 closing transition. At this stage, the closing inference rested on the earlier short
+S2 capture and the simultaneous decreasing A0 index. Neither valve direction in this initial dataset was
+independently verified against real movement or against deliberately
 varied S3 temperatures. The user confirms the real circulator remains on; this
 capture is not intended to force it off.
+
+
+### Real S2: opposite demand changes confirm the direction interpretation
+
+The user changed the real S2 heating offset in HA while the observer passively
+recorded the bus. S2 uses a real NIBE ECS/AXC board; these are not responses
+from the emulated S3. The heating curve stayed at 6 in both test windows.
+The [sanitized evidence snapshot](../../docs/captures/2026-11-12-s2-valve-directions.json)
+contains checked frame counts, direction transitions and the corresponding HA
+history. All times below are **UTC on 2026-11-12**.
+
+**Lower demand, complete 22:00:35–22:10:35 recording:**
+
+- Offset settled at −10; calculated S2 departure changed from 31.4 to 25.0 °C.
+- Measured HA departure fell from 33.4 to 29.8 °C.
+- Four `08 -> 0A -> 08` pulses began at 22:01:12.514, 22:03:42.475,
+  22:06:11.430 and 22:08:39.383. Durations were approximately 9, 8, 7 and
+  6 seconds respectively (30 command samples in total).
+- No `0C` was observed. There were 600 valid temperature responses and no
+  checksum/missing-response errors reported by the S2 decoder.
+- W0/BT2 changed from 613 to 649 raw as the water cooled. The raw NTC value
+  must not be interpreted directly as degrees Celsius.
+
+**Raise demand, initial 22:14:08–22:20:03 snapshot:**
+
+- Offset increased from −10 and ended at +3 in this snapshot; calculated S2
+  departure rose from 25.0 to 36.0 °C.
+- HA departure initially fell from 29.0 to 28.4 °C, then rose to 30.4 °C.
+- Two `08 -> 0C -> 08` pulses began at 22:15:57.269 and 22:18:26.221,
+  each lasting approximately 8 seconds (16 command samples in total).
+- No `0A` was observed. The snapshot contains 356 valid temperature
+  responses and no S2 checksum/missing-response errors.
+- W0/BT2 was 663 initially, reached 666, and then fell to 639 raw.
+  The ten-minute recording was still running at this snapshot's cutoff.
+
+Together, these opposite demand tests strongly support **bit 0x02 = closing,
+bit 0x04 = opening, neither bit = idle** in byte 0 of the S2 `0x55`
+payload. Byte 1 varied within an unchanged direction, including `0C 59`,
+`0C 5C` and `0C 77`; it is not a direction selector.
+
+The circulator state (register 44746) remained 1 in both experiments. Thus the
+pump assignment to bit 0x08 remains unverified by an on/off transition.
+An offset of −10 does not itself prove movement: the controller issues
+direction pulses with pauses, and a valve already at its end stop may not move.
+These observations confirm the **command interpretation**, not valve position,
+travel completion or measured relay voltage. The existing explicit ECS masks
+already match the evidence; no decoder or generic-default change is needed.
