@@ -1,0 +1,352 @@
+{
+  "date": "2026-11-12",
+  "timezone": "UTC",
+  "device": "Real NIBE ECS/AXC S2",
+  "scope": "Passive bus recording; user changed S2 heat offset; no firmware flashed or relays driven by the observer.",
+  "mapping": {
+    "08": "idle",
+    "0A": "closing",
+    "0C": "opening"
+  },
+  "limitations": [
+    "Commands, not measured valve position or independently measured relay outputs.",
+    "Pump bit 0x08 remains a candidate: no pump-off transition.",
+    "HA temperatures have independent polling timestamps."
+  ],
+  "captures": [
+    {
+      "experiment": "lower_demand",
+      "scope": "complete 10-minute capture",
+      "summary": {
+        "rows": 1800,
+        "invalid_or_missing_responses": 0,
+        "first": "2026-11-12T22:00:35.526219+00:00",
+        "last": "2026-11-12T22:10:35.026447+00:00",
+        "commands55": {
+          "08 77": 551,
+          "0a 77": 29,
+          "08 5c": 8,
+          "08 59": 1,
+          "08 00": 10,
+          "0a 00": 1
+        },
+        "temperature_samples": 600,
+        "W0_BT2_raw": {
+          "min": 612,
+          "max": 649,
+          "first": 613,
+          "last": 649
+        },
+        "W1_BT3_raw": {
+          "min": 655,
+          "max": 660,
+          "first": 656,
+          "last": 660
+        },
+        "W2_BT50_raw": {
+          "min": 717,
+          "max": 739,
+          "first": 735,
+          "last": 719
+        }
+      },
+      "direction_transitions": [
+        {
+          "time_utc": "2026-11-12T22:00:35.544406+00:00",
+          "byte0": "08",
+          "payload": "08 77",
+          "BT2_raw": null
+        },
+        {
+          "time_utc": "2026-11-12T22:01:12.514231+00:00",
+          "byte0": "0A",
+          "payload": "0A 77",
+          "BT2_raw": 612
+        },
+        {
+          "time_utc": "2026-11-12T22:01:21.549699+00:00",
+          "byte0": "08",
+          "payload": "08 77",
+          "BT2_raw": 612
+        },
+        {
+          "time_utc": "2026-11-12T22:03:42.475286+00:00",
+          "byte0": "0A",
+          "payload": "0A 77",
+          "BT2_raw": 622
+        },
+        {
+          "time_utc": "2026-11-12T22:03:50.467448+00:00",
+          "byte0": "08",
+          "payload": "08 77",
+          "BT2_raw": 622
+        },
+        {
+          "time_utc": "2026-11-12T22:06:11.430172+00:00",
+          "byte0": "0A",
+          "payload": "0A 77",
+          "BT2_raw": 630
+        },
+        {
+          "time_utc": "2026-11-12T22:06:18.419688+00:00",
+          "byte0": "08",
+          "payload": "08 77",
+          "BT2_raw": 630
+        },
+        {
+          "time_utc": "2026-11-12T22:08:39.383300+00:00",
+          "byte0": "0A",
+          "payload": "0A 77",
+          "BT2_raw": 638
+        },
+        {
+          "time_utc": "2026-11-12T22:08:45.387926+00:00",
+          "byte0": "08",
+          "payload": "08 77",
+          "BT2_raw": 638
+        }
+      ],
+      "ha_history": {
+        "number.heat_curve_s2_47006": [
+          {
+            "time_utc": "2026-11-12T22:00:35.140682+00:00",
+            "state": "6.0"
+          }
+        ],
+        "number.heat_offset_s2_47010": [
+          {
+            "time_utc": "2026-11-12T22:00:35.140682+00:00",
+            "state": "-6.0"
+          },
+          {
+            "time_utc": "2026-11-12T22:00:53.872016+00:00",
+            "state": "-10.0"
+          },
+          {
+            "time_utc": "2026-11-12T22:00:55.696752+00:00",
+            "state": "-7.0"
+          },
+          {
+            "time_utc": "2026-11-12T22:00:57.692922+00:00",
+            "state": "-10.0"
+          },
+          {
+            "time_utc": "2026-11-12T22:01:10.474721+00:00",
+            "state": "-4.0"
+          },
+          {
+            "time_utc": "2026-11-12T22:01:22.466457+00:00",
+            "state": "-5.0"
+          },
+          {
+            "time_utc": "2026-11-12T22:01:28.405608+00:00",
+            "state": "-10.0"
+          }
+        ],
+        "sensor.calc_supply_s2_43008": [
+          {
+            "time_utc": "2026-11-12T22:00:35.140682+00:00",
+            "state": "31.4"
+          },
+          {
+            "time_utc": "2026-11-12T22:02:29.655864+00:00",
+            "state": "25.0"
+          }
+        ],
+        "sensor.extra_heating_system_pump_s2_44746": [
+          {
+            "time_utc": "2026-11-12T22:00:35.140682+00:00",
+            "state": "1"
+          }
+        ],
+        "sensor.ep21_bt2_supply_temp_s2_40007": [
+          {
+            "time_utc": "2026-11-12T22:00:35.140682+00:00",
+            "state": "33.4"
+          },
+          {
+            "time_utc": "2026-11-12T22:02:11.460072+00:00",
+            "state": "32.4"
+          },
+          {
+            "time_utc": "2026-11-12T22:04:35.421851+00:00",
+            "state": "31.6"
+          },
+          {
+            "time_utc": "2026-11-12T22:07:03.376742+00:00",
+            "state": "30.8"
+          },
+          {
+            "time_utc": "2026-11-12T22:09:30.329813+00:00",
+            "state": "29.8"
+          }
+        ],
+        "sensor.ep21_bt3_return_temp_s2_40129": [
+          {
+            "time_utc": "2026-11-12T22:00:35.140682+00:00",
+            "state": "29.1"
+          },
+          {
+            "time_utc": "2026-11-12T22:02:21.966229+00:00",
+            "state": "29.2"
+          },
+          {
+            "time_utc": "2026-11-12T22:07:13.383078+00:00",
+            "state": "29.0"
+          },
+          {
+            "time_utc": "2026-11-12T22:09:40.326633+00:00",
+            "state": "28.7"
+          }
+        ]
+      }
+    },
+    {
+      "experiment": "raise_demand",
+      "scope": "first 356 temperature responses; recording still running when snapshot was taken",
+      "summary": {
+        "rows": 1066,
+        "invalid_or_missing_responses": 0,
+        "first": "2026-11-12T22:14:08.771263+00:00",
+        "last": "2026-11-12T22:20:03.720644+00:00",
+        "commands55": {
+          "08 77": 329,
+          "08 5c": 4,
+          "08 00": 6,
+          "0c 77": 14,
+          "0c 5c": 1,
+          "0c 59": 1
+        },
+        "temperature_samples": 356,
+        "W0_BT2_raw": {
+          "min": 639,
+          "max": 666,
+          "first": 663,
+          "last": 639
+        },
+        "W1_BT3_raw": {
+          "min": 665,
+          "max": 672,
+          "first": 665,
+          "last": 672
+        },
+        "W2_BT50_raw": {
+          "min": 717,
+          "max": 739,
+          "first": 727,
+          "last": 729
+        }
+      },
+      "direction_transitions": [
+        {
+          "time_utc": "2026-11-12T22:14:09.292132+00:00",
+          "byte0": "08",
+          "payload": "08 77",
+          "BT2_raw": 663
+        },
+        {
+          "time_utc": "2026-11-12T22:15:57.269275+00:00",
+          "byte0": "0C",
+          "payload": "0C 77",
+          "BT2_raw": 666
+        },
+        {
+          "time_utc": "2026-11-12T22:16:05.262614+00:00",
+          "byte0": "08",
+          "payload": "08 77",
+          "BT2_raw": 666
+        },
+        {
+          "time_utc": "2026-11-12T22:18:26.221416+00:00",
+          "byte0": "0C",
+          "payload": "0C 59",
+          "BT2_raw": 660
+        },
+        {
+          "time_utc": "2026-11-12T22:18:34.223818+00:00",
+          "byte0": "08",
+          "payload": "08 77",
+          "BT2_raw": 660
+        }
+      ],
+      "ha_history": {
+        "number.heat_curve_s2_47006": [
+          {
+            "time_utc": "2026-11-12T22:14:08.728306+00:00",
+            "state": "6.0"
+          }
+        ],
+        "number.heat_offset_s2_47010": [
+          {
+            "time_utc": "2026-11-12T22:14:08.728306+00:00",
+            "state": "-10.0"
+          },
+          {
+            "time_utc": "2026-11-12T22:14:23.274618+00:00",
+            "state": "1.0"
+          },
+          {
+            "time_utc": "2026-11-12T22:14:25.245383+00:00",
+            "state": "2.0"
+          },
+          {
+            "time_utc": "2026-11-12T22:14:35.295126+00:00",
+            "state": "3.0"
+          }
+        ],
+        "sensor.calc_supply_s2_43008": [
+          {
+            "time_utc": "2026-11-12T22:14:08.728306+00:00",
+            "state": "25.0"
+          },
+          {
+            "time_utc": "2026-11-12T22:14:46.246312+00:00",
+            "state": "36.0"
+          }
+        ],
+        "sensor.extra_heating_system_pump_s2_44746": [
+          {
+            "time_utc": "2026-11-12T22:14:08.728306+00:00",
+            "state": "1"
+          }
+        ],
+        "sensor.ep21_bt2_supply_temp_s2_40007": [
+          {
+            "time_utc": "2026-11-12T22:14:08.728306+00:00",
+            "state": "29.0"
+          },
+          {
+            "time_utc": "2026-11-12T22:14:26.244652+00:00",
+            "state": "28.4"
+          },
+          {
+            "time_utc": "2026-11-12T22:16:52.213588+00:00",
+            "state": "28.6"
+          },
+          {
+            "time_utc": "2026-11-12T22:19:19.159643+00:00",
+            "state": "30.4"
+          }
+        ],
+        "sensor.ep21_bt3_return_temp_s2_40129": [
+          {
+            "time_utc": "2026-11-12T22:14:08.728306+00:00",
+            "state": "28.5"
+          },
+          {
+            "time_utc": "2026-11-12T22:14:38.249365+00:00",
+            "state": "28.2"
+          },
+          {
+            "time_utc": "2026-11-12T22:17:04.203093+00:00",
+            "state": "27.8"
+          },
+          {
+            "time_utc": "2026-11-12T22:19:29.164545+00:00",
+            "state": "27.6"
+          }
+        ]
+      }
+    }
+  ]
+}

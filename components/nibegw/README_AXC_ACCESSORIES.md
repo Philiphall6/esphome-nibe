@@ -1,5 +1,7 @@
 # NibeGW AXC/Accessory Emulation Notes
 
+Maintained by [Philiphall6](https://github.com/Philiphall6). Protocol findings updated 2026-11-12.
+
 ## Acknowledgements
 
 This work is based on the ESPHome `nibegw` component and on the original author's work.
@@ -24,7 +26,7 @@ The main objectives are:
 - send the raw temperature/sensor values expected by the heat pump through token `0x90`;
 - receive heat-pump commands and states from token `0x55`;
 - expose these commands and states to Home Assistant as ESPHome `binary_sensor` entities;
-- prepare configurable decoding for ECS/AXC mixing valve open/close commands.
+- decode ECS/AXC mixing valve direction commands using the real S2 capture findings below.
 
 ## Added Features
 
@@ -72,6 +74,8 @@ w6_raw   -> W6
 w7_raw   -> W7
 ```
 
+These are raw NTC sensor values, **not degrees Celsius**. In the synchronized S2 captures, warmer BT2 water corresponded to a lower W0 value. Do not feed temperatures in degrees directly into these raw fields.
+
 Values can come from ESPHome `sensor.homeassistant` entities, for example Home Assistant `input_number` helpers.
 The component also caches the last valid value received from Home Assistant so it can keep replying to the heat pump if a value is not immediately available.
 
@@ -100,46 +104,105 @@ msg1_accessory_mask: 0x08
 Set a mask to `0x00` to disable that decoded state for one accessory.
 This is useful for ECS/AXC because `0x55 = 02 00` appears frequently on S3 and should not automatically be treated as a reversing valve command.
 
-### Mixing Valve Preparation
+### ECS Mixing Valve Commands: Corrected Mapping
 
-Two outputs are prepared for ECS/AXC mixing valve commands:
+Real S2 demand-change captures on 2026-11-12 support direction decoding from
+**byte 0**, with bit `0x04` for opening and bit `0x02` for closing:
 
 ```yaml
+# Fields inside an emulated ECS entry; binary_sensor IDs must exist.
 msg1_mixing_open_sensor: ecs_s3_mixing_open
 msg1_mixing_close_sensor: ecs_s3_mixing_close
+msg1_mixing_open_byte: 0
+msg1_mixing_open_mask: 0x04
+msg1_mixing_open_value: 0x04
+msg1_mixing_close_byte: 0
+msg1_mixing_close_mask: 0x02
+msg1_mixing_close_value: 0x02
+# Disable the generic diverter-valve interpretation for ECS.
+msg1_valve_request_mask: 0x00
 ```
 
-The decoding is configurable:
+The former byte-1 comparisons `0x05` / `0x06` were hypotheses, not validated
+ECS direction commands. Generic code defaults are retained for compatibility;
+configure the explicit ECS masks above. Byte 1 varied independently of direction
+(`77`, `00`, `5C`, `59` in the controlled tests).
 
-```yaml
-msg1_mixing_open_byte: 1
-msg1_mixing_open_mask: 0xFF
-msg1_mixing_open_value: 0x05
-msg1_mixing_close_byte: 1
-msg1_mixing_close_mask: 0xFF
-msg1_mixing_close_value: 0x06
-```
+| Byte 0 observed with bit `0x08` set | Direction command | French HA label |
+| --- | --- | --- |
+| `08` | Neither direction requested | Veille |
+| `0A` | Closing (`0x02`) | Fermeture |
+| `0C` | Opening (`0x04`) | Ouverture |
+| `0E` | Both direction bits set: conflict, not a normal direction | Conflit |
 
-These values are working assumptions. They must be confirmed with a real dump where the heat pump explicitly commands the mixing valve to open and close.
+`0E` is the decoder's conflict case, not a state observed in these S2 tests.
+These are **commands**, not measured valve position or independently measured
+relay outputs. Veille does not mean fully closed. Commands arrive as pulses with
+idle intervals; the physical valve may already be at an end stop.
+
+Bit `0x08` is a **candidate circulation-pump request**. The real S2 pump stayed
+on throughout these captures, so a pump-off transition is still needed to prove
+this mapping. Do not transfer the POOL310/COOLING bit meanings to ECS.
 
 ## Observations From Dumps
 
-### ECS / AXC
+### ECS / AXC: Real S2 and Emulated S3
 
-For `ECS_S3`:
+The installation used a **real NIBE ECS/AXC S2 card** (`0x02`) and an
+**ESP-emulated S3 circuit** (`0x03`) with fictitious sensor values from HA helpers.
+S3 observations must not be presented as measurements from another physical card.
+
+The existing temperature-word mapping is:
 
 ```text
-W0 = BT2
-W1 = BT3
-W2 = BT50
+W0 = BT2 raw supply sensor
+W1 = BT3 raw return sensor
+W2 = BT50 raw room sensor
 ```
 
-The frame `0x55 = 02 00` appears frequently.
-It is still logged, but the generic `valve_request` decoding can be disabled in YAML with:
+The historic S3 frame `02 00` contains the closing bit under the corrected ECS
+mapping. It should not be decoded as a generic reversing/diverter valve request.
 
-```yaml
-msg1_valve_request_mask: 0x00
-```
+#### Opposite demand changes on real S2
+
+All times below are UTC, 2026-11-12. Bus and HA samples have independent polling
+timestamps; compare trends rather than assuming identical sampling instants.
+
+| Test | Recording window | HA calculated supply | HA supply trend | Bus result |
+| --- | --- | --- | --- | --- |
+| Lower demand, offset settling at −10 | 22:00:35–22:10:35 | 31.4 → 25.0 °C | 33.4 → 29.8 °C | Four `0A` closing pulses, approximately 9, 8, 7 and 6 seconds; no `0C` |
+| Raise demand, offset −10 → +3 | 22:14:08–22:20:03, initial snapshot | 25.0 → 36.0 °C | 29.0 → 28.4 → 30.4 °C | Two `0C` opening pulses, approximately 8 seconds each; no `0A` |
+
+The closing capture contains 600 valid temperature responses and 600 commands;
+the opening snapshot contains 356 valid temperature responses and 355 commands.
+W0 increased from 613 to 649 while the water cooled in the closing test. During
+the opening snapshot it reached 666, then fell to 639 as the water warmed.
+
+[Capture evidence and synchronized HA samples](../../docs/captures/2026-11-12-s2-valve-directions.json)
+record the counts, UTC transitions and limitations. The opening evidence file is
+explicitly a partial snapshot, not the full ten-minute recording.
+
+#### Token `0xA0`
+
+Observed two-byte values behaved like a big-endian controller index: for example,
+`003C → 003B` (60 → 59) during a closing pulse. On emulated S3, the index rose
+95 → 99 → 100, then stayed at 100 while opening pulses continued. This suggests
+a calculated valve index; it does **not** establish physical position feedback
+or a measured opening percentage.
+
+#### Passive observation and readable states
+
+Never add the real S2 address to `acknowledge` or make an emulator reply in place
+of its physical card. Passive observation, transition logs, and the three-state
+HA text sensor are implemented on the
+[`ecs-s2-passive-diagnostics` branch](https://github.com/Philiphall6/esphome-nibe/tree/ecs-s2-passive-diagnostics),
+not in the code on `master` at the time of this documentation update.
+
+Use that branch's
+[passive S2 / emulated S3 example](https://github.com/Philiphall6/esphome-nibe/blob/ecs-s2-passive-diagnostics/examples/ecs-s2-observe-s3-emulate.yml)
+for `observe_only: true` and French text states. Its ECS INFO logs report
+`valve_command=opening`, `closing` or `idle`, plus the configured pump-request
+interpretation. A `pump_request=ON` log does not independently prove bit `0x08`.
 
 ### POOL310
 
@@ -277,7 +340,8 @@ Currently useful features:
 
 Still to confirm:
 
-- exact ECS/AXC mixing valve open/close commands;
+- ECS circulation-pump bit with an actual pump-off transition;
+- physical relay-output verification and applicability beyond the tested installation;
 - exact DEH310 GP15 pump bit under a real heat-demand condition;
 - full `0xA0` variations depending on operating modes;
 - exact meaning of some `W3..W7` words.
