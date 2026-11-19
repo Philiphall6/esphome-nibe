@@ -1,4 +1,5 @@
 #include "esphome/core/log.h"
+#include "esphome/core/alloc_helpers.h"
 
 #include "NibeGwClimate.h"
 #include "NibeGwComponent.h"
@@ -165,7 +166,7 @@ void NibeGwClimate::publish_set_point(float value) {
 void NibeGwClimate::dump_config() {
   ESP_LOGCONFIG(TAG, "NibeGw Climate");
   ESP_LOGCONFIG(TAG, " Address: 0x%x", address_);
-  ESP_LOGCONFIG(TAG, " Sensor: %s", sensor_->get_name().c_str());
+  ESP_LOGCONFIG(TAG, " Sensor: %s", LOG_STR_ARG(sensor_->get_log_name()));
   dump_traits_(TAG);
 }
 
